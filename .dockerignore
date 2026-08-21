@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env*
+.manus-logs
+coverage
+*.log
+audit-*.png
+*.md
+!README.md

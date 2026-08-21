@@ -1,0 +1,41 @@
+CREATE TABLE `cvmFinancialSnapshots` (
+	`id` bigint AUTO_INCREMENT NOT NULL,
+	`assetId` int NOT NULL,
+	`cnpj` varchar(18) NOT NULL,
+	`cvmCode` varchar(16) NOT NULL,
+	`companyName` varchar(200) NOT NULL,
+	`filing` enum('ITR','DFP') NOT NULL,
+	`referenceDate` varchar(10) NOT NULL,
+	`periodStart` varchar(10) NOT NULL,
+	`periodEnd` varchar(10) NOT NULL,
+	`version` int NOT NULL,
+	`revenue` decimal(26,2),
+	`netIncome` decimal(26,2),
+	`totalAssets` decimal(26,2),
+	`equity` decimal(26,2),
+	`comparativeRevenue` decimal(26,2),
+	`comparativeNetIncome` decimal(26,2),
+	`comparativeTotalAssets` decimal(26,2),
+	`comparativeEquity` decimal(26,2),
+	`sourceUrl` text NOT NULL,
+	`sourceAsOf` timestamp NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `cvmFinancialSnapshots_id` PRIMARY KEY(`id`),
+	CONSTRAINT `cvm_snapshot_asset_filing_ref_version_idx` UNIQUE(`assetId`,`filing`,`referenceDate`,`version`)
+);
+--> statement-breakpoint
+CREATE TABLE `cvmQuarterlyFinancials` (
+	`id` bigint AUTO_INCREMENT NOT NULL,
+	`assetId` int NOT NULL,
+	`periodStart` varchar(10) NOT NULL,
+	`periodEnd` varchar(10) NOT NULL,
+	`revenue` decimal(26,2) NOT NULL,
+	`netIncome` decimal(26,2),
+	`netMargin` decimal(14,6),
+	`sourceAsOf` timestamp NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `cvmQuarterlyFinancials_id` PRIMARY KEY(`id`),
+	CONSTRAINT `cvm_quarterly_asset_period_idx` UNIQUE(`assetId`,`periodEnd`)
+);

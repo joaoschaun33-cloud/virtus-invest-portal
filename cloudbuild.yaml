@@ -1,0 +1,96 @@
+substitutions:
+  _REGION: southamerica-east1
+  _REPOSITORY: virtus
+  _SERVICE: virtus-web
+  _CLOUD_SQL_INSTANCE: ""
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    env:
+      - "VITE_FIREBASE_API_KEY=$$VITE_FIREBASE_API_KEY"
+    args:
+      [
+        "build",
+        "--build-arg",
+        "VITE_FIREBASE_API_KEY=$$VITE_FIREBASE_API_KEY",
+        "--tag",
+        "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}",
+        ".",
+      ]
+  - name: gcr.io/cloud-builders/docker
+    args:
+      [
+        "build",
+        "--target",
+        "migration",
+        "--tag",
+        "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/virtus-migrate:${BUILD_ID}",
+        ".",
+      ]
+  - name: gcr.io/cloud-builders/docker
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}",
+      ]
+  - name: gcr.io/cloud-builders/docker
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/virtus-migrate:${BUILD_ID}",
+      ]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - deploy
+      - virtus-migrate
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/virtus-migrate:${BUILD_ID}
+      - --region=${_REGION}
+      - --service-account=virtus-runtime@portal-virtus.iam.gserviceaccount.com
+      - --set-secrets=DATABASE_URL=virtus-database-url:latest
+      - --set-cloudsql-instances=${_CLOUD_SQL_INSTANCE}
+      - --command=pnpm
+      - --args=db:push
+      - --memory=512Mi
+      - --cpu=1
+      - --max-retries=0
+      - --task-timeout=600s
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - execute
+      - virtus-migrate
+      - --region=${_REGION}
+      - --wait
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --service-account=virtus-runtime@portal-virtus.iam.gserviceaccount.com
+      - --port=8080
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=4
+      - --concurrency=80
+      - --timeout=300
+      - --set-env-vars=NODE_ENV=production,ALERT_MONITOR_MODE=scheduler,CVM_INGESTION_LIMIT=25,PUBLIC_SITE_URL=https://www.virtusinvestimentos.com.br,GOOGLE_CLOUD_PROJECT=portal-virtus,ADMIN_EMAIL=adm@virtusinvestimentos.com.br,CONTACT_EMAIL=contato@virtusinvestimentos.com.br,SUPPORT_EMAIL=suporte@virtusinvestimentos.com.br
+      - --set-secrets=DATABASE_URL=virtus-database-url:latest,JWT_SECRET=virtus-jwt-secret:latest,CRON_SECRET=virtus-cron-secret:latest,BRAPI_API_KEY=virtus-brapi-api-key:latest,TWELVE_DATA_API_KEY=virtus-twelve-data-api-key:latest,FINNHUB_API_KEY=virtus-finnhub-api-key:latest,RESEND_API_KEY=virtus-resend-api-key:latest,RESEND_FROM_EMAIL=virtus-resend-from-email:latest
+      - --add-cloudsql-instances=${_CLOUD_SQL_INSTANCE}
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/virtus-migrate:${BUILD_ID}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
