@@ -561,11 +561,12 @@ export async function ensureCatalogSeed() {
     seedPromise = (async () => {
       const db = await getDb();
       if (!db) return;
-      const countResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(assets);
-      if (parseNumber(countResult[0]?.count) > 0) return;
-      await db.insert(assets).values(catalog);
+      const existing = await db.select({ ticker: assets.ticker, id: assets.id }).from(assets);
+      const existingTickers = new Set(existing.map(a => a.ticker));
+      const missing = catalog.filter(a => !existingTickers.has(a.ticker));
+      if (missing.length > 0) {
+        await db.insert(assets).values(missing);
+      }
       const savedAssets = await db.select().from(assets);
       const now = Date.now();
       const quoteRows = savedAssets.flatMap(asset => {
