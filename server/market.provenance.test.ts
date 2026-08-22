@@ -159,6 +159,43 @@ describe("market provenance contract", () => {
     });
   });
 
+  it("preserves stored provider provenance when live history is unavailable", async () => {
+    dbMocks.getAssetByTicker.mockResolvedValue(asset);
+    dbMocks.getQuotes.mockResolvedValue([
+      {
+        quoteTime: new Date("2026-08-15T12:00:00Z"),
+        open: "38",
+        high: "39",
+        low: "37",
+        close: "38.5",
+        volume: "1000",
+        source: "brapi",
+      },
+    ]);
+    providerMocks.fetchHistoricalCandles.mockResolvedValue([]);
+    providerMocks.fetchLiveQuote.mockResolvedValue(null);
+    providerMocks.fetchFundamentals.mockResolvedValue(null);
+    providerMocks.getProviderStatus.mockReturnValue({
+      brapi: true,
+      twelveData: false,
+      finnhub: false,
+      resend: false,
+    });
+
+    const result = await marketRouter
+      .createCaller(context)
+      .asset({ ticker: "PETR4", interval: "1D" });
+
+    expect(result).toMatchObject({
+      dataSource: "brapi",
+      isDemo: false,
+    });
+    expect(result?.quotes[0]).toMatchObject({
+      close: 38.5,
+      source: "brapi",
+    });
+  });
+
   it("returns explicit demo provenance for editorial fallback without external calls", async () => {
     dbMocks.listNews.mockResolvedValue([
       {

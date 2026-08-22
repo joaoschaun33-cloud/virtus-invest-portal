@@ -114,7 +114,10 @@ const responseCache = new Map<
   { expiresAt: number; payload: unknown }
 >();
 const responseCacheTtlMs = 60_000;
-const quoteCacheTtlMs = 20 * 60_000;
+// Keep the provider cache aligned with the realtime polling contract. The UI
+// may request every 30 seconds; it must not receive a 20-minute-old quote while
+// presenting it as a recent update.
+const quoteCacheTtlMs = 20_000;
 const quoteCache = new Map<
   string,
   { expiresAt: number; quote: ProviderQuote | null }
@@ -133,6 +136,8 @@ const catalogProviderSymbols: Record<
   IBOV: { brapi: "^BVSP" },
   "EUR/USD": { "twelve-data": "EUR/USD" },
   "BTC/USD": { "twelve-data": "BTC/USD" },
+  "ETH/USD": { "twelve-data": "ETH/USD" },
+  "SOL/USD": { "twelve-data": "SOL/USD" },
   SPX: {},
   IXIC: {},
   DXY: {},
@@ -198,6 +203,18 @@ function numberOr(value: unknown, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function normalizeProviderTimestamp(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const date = new Date(value < 10_000_000_000 ? value * 1000 : value);
+    if (!Number.isNaN(date.valueOf())) return date.toISOString();
+  }
+  if (typeof value === "string" && value.trim()) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.valueOf())) return date.toISOString();
+  }
+  return new Date().toISOString();
+}
+
 function optionalNumber(...values: unknown[]) {
   for (const value of values) {
     const numeric = Number(value);
@@ -215,10 +232,12 @@ function normalizeQuote(
   open: unknown,
   high: unknown,
   low: unknown,
-  source: ProviderQuote["source"]
+  source: ProviderQuote["source"],
+  providerAsOf?: unknown
 ): ProviderQuote | null {
   const normalizedPrice = numberOr(price);
   if (!normalizedPrice) return null;
+  const asOf = normalizeProviderTimestamp(providerAsOf);
   return {
     ticker,
     price: normalizedPrice,
@@ -228,7 +247,7 @@ function normalizeQuote(
     high: numberOr(high, normalizedPrice),
     low: numberOr(low, normalizedPrice),
     source,
-    asOf: new Date().toISOString(),
+    asOf,
     freshness: "delayed",
     isDemo: false,
   };
@@ -236,11 +255,12 @@ function normalizeQuote(
 
 async function fetchBrapiPayload(ticker: string, extra = "") {
   const token = process.env.BRAPI_API_KEY;
-  const sandboxTickers = new Set(["PETR4", "VALE3", "ITUB4", "MGLU3"]);
-  if (!token && !sandboxTickers.has(ticker.toUpperCase())) return null;
-  const query = extra.replace(/^&/, "");
+  const queryParts: string[] = [];
+  if (token) queryParts.push(`token=${encodeURIComponent(token)}`);
+  if (extra) queryParts.push(extra.replace(/^[&?]/, ""));
+  const qs = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
   return fetchJson(
-    `https://brapi.dev/api/quote/${encodeURIComponent(ticker)}${query ? `?${query}` : ""}`,
+    `https://brapi.dev/api/quote/${encodeURIComponent(ticker)}${qs}`,
     token ? { Authorization: `Bearer ${token}` } : {}
   );
 }
@@ -258,7 +278,8 @@ async function fetchBrapi(ticker: string, assetType: string) {
     quote?.regularMarketOpen,
     quote?.regularMarketDayHigh,
     quote?.regularMarketDayLow,
-    "brapi"
+    "brapi",
+    quote?.regularMarketTime
   );
 }
 
@@ -277,7 +298,8 @@ async function fetchTwelveData(ticker: string, assetType: string) {
     payload?.open,
     payload?.high,
     payload?.low,
-    "twelve-data"
+    "twelve-data",
+    payload?.datetime ?? payload?.timestamp
   );
 }
 
@@ -296,7 +318,8 @@ async function fetchFinnhub(ticker: string, assetType: string) {
     payload?.o,
     payload?.h,
     payload?.l,
-    "finnhub"
+    "finnhub",
+    payload?.t
   );
 }
 

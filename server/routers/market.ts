@@ -113,6 +113,12 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
     ? { ...liveQuote, freshness: "delayed" as const, isDemo: false }
     : catalogQuoteFromAsset(asset);
   const quoteRows = liveCandles.length ? liveCandles : fallbackQuotes;
+  const historySource: string = liveCandles[0]?.source ??
+    (fallbackQuotes[0] && "source" in fallbackQuotes[0]
+      ? String(fallbackQuotes[0].source)
+      : "catalog");
+  const hasStoredNonCatalogHistory =
+    !liveCandles.length && fallbackQuotes.length > 0 && historySource !== "catalog";
   const closes = quoteRows.map(quote =>
     asNumber("close" in quote ? quote.close : 0)
   );
@@ -154,7 +160,9 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
       source: "source" in quote ? quote.source : "catalog",
     })),
     providerStatus,
-    dataSource: liveCandles.length ? liveCandles[0]?.source : "catalog",
+    // Preserve the source of stored historical candles when the live history
+    // provider is unavailable. A stale real series is not the same as demo data.
+    dataSource: historySource,
     fundamentalsSource: liveFundamentals?.source ?? "catalog",
     fundamentalsMeta: {
       source: liveFundamentals?.source ?? "catalog",
@@ -162,7 +170,7 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
       freshness: liveFundamentals ? ("close" as const) : ("demo" as const),
       isDemo: !liveFundamentals,
     },
-    isDemo: !liveCandles.length && !liveFundamentals,
+    isDemo: !liveCandles.length && !liveFundamentals && !hasStoredNonCatalogHistory,
   };
 }
 
