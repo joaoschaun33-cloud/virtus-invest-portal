@@ -15,9 +15,9 @@ export type TreasuryBond = {
 };
 
 export type TreasuryOverview = {
-  selicRate: number;
-  cdiRate: number;
-  ipca12m: number;
+  selicRate: number | null;
+  cdiRate: number | null;
+  ipca12m: number | null;
   bonds: TreasuryBond[];
   source: "tesouro-direto";
   updatedAt: string;
@@ -191,90 +191,6 @@ function parseBondsFromCsv(csv: string): {
   return { bonds, maxBaseDate };
 }
 
-const defaultTreasuryBonds: TreasuryBond[] = [
-  {
-    name: "Tesouro Selic 2029",
-    category: "SELIC",
-    maturityDate: "01/03/2029",
-    annualRate: "Selic + 0,15%",
-    unitPrice: 15420.50,
-    minInvestment: 154.20,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-  {
-    name: "Tesouro Selic 2031",
-    category: "SELIC",
-    maturityDate: "01/03/2031",
-    annualRate: "Selic + 0,19%",
-    unitPrice: 15380.12,
-    minInvestment: 153.80,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-  {
-    name: "Tesouro IPCA+ 2029",
-    category: "IPCA",
-    maturityDate: "15/08/2029",
-    annualRate: "IPCA + 6,45%",
-    unitPrice: 3410.80,
-    minInvestment: 34.10,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-  {
-    name: "Tesouro IPCA+ 2035",
-    category: "IPCA",
-    maturityDate: "15/05/2035",
-    annualRate: "IPCA + 6,58%",
-    unitPrice: 2280.40,
-    minInvestment: 45.60,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-  {
-    name: "Tesouro IPCA+ 2045",
-    category: "IPCA",
-    maturityDate: "15/05/2045",
-    annualRate: "IPCA + 6,62%",
-    unitPrice: 1195.30,
-    minInvestment: 35.85,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-  {
-    name: "Tesouro Prefixado 2027",
-    category: "PREFIXADO",
-    maturityDate: "01/01/2027",
-    annualRate: "12,85% a.a.",
-    unitPrice: 835.40,
-    minInvestment: 33.41,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-  {
-    name: "Tesouro Prefixado 2031",
-    category: "PREFIXADO",
-    maturityDate: "01/01/2031",
-    annualRate: "13,10% a.a.",
-    unitPrice: 512.60,
-    minInvestment: 30.75,
-    source: "tesouro-direto",
-    asOf: new Date().toISOString(),
-  },
-];
-
-function defaultOverview(updatedAt: string): TreasuryOverview {
-  return {
-    selicRate: 13.90,
-    cdiRate: 13.65,
-    ipca12m: 4.44,
-    bonds: defaultTreasuryBonds.map(b => ({ ...b, asOf: updatedAt })),
-    source: "tesouro-direto",
-    updatedAt,
-  };
-}
-
 export async function fetchTreasuryOverview(): Promise<TreasuryOverview> {
   if (cachedTreasury && Date.now() - cachedAt < CACHE_TTL_MS) {
     return cachedTreasury;
@@ -284,25 +200,32 @@ export async function fetchTreasuryOverview(): Promise<TreasuryOverview> {
   const selic = macroBrief.indicators.find(item => item.id === "selic");
   const ipca = macroBrief.indicators.find(item => item.id === "ipca12m");
 
-  const selicRate = selic?.value ?? 13.90;
-  const ipcaRate = ipca?.value ?? 4.44;
+  const selicRate = selic?.value ?? null;
+  const ipcaRate = ipca?.value ?? null;
 
   if (!csv) {
-    const fallback = defaultOverview(new Date().toISOString());
-    fallback.selicRate = selicRate;
-    fallback.cdiRate = Math.max(0, Number((selicRate - 0.10).toFixed(2)));
-    fallback.ipca12m = ipcaRate;
-    return fallback;
+    return {
+      selicRate,
+      cdiRate:
+        selicRate === null
+          ? null
+          : Math.max(0, Number((selicRate - 0.1).toFixed(2))),
+      ipca12m: ipcaRate,
+      bonds: [],
+      source: "tesouro-direto",
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   const { bonds, maxBaseDate } = parseBondsFromCsv(csv);
-  const resolvedBonds = bonds.length > 0 ? bonds : defaultTreasuryBonds;
-
   const overview: TreasuryOverview = {
     selicRate,
-    cdiRate: Math.max(0, Number((selicRate - 0.10).toFixed(2))),
+    cdiRate:
+      selicRate === null
+        ? null
+        : Math.max(0, Number((selicRate - 0.1).toFixed(2))),
     ipca12m: ipcaRate,
-    bonds: resolvedBonds,
+    bonds,
     source: "tesouro-direto",
     updatedAt: maxBaseDate?.toISOString() ?? new Date().toISOString(),
   };

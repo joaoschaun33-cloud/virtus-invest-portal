@@ -22,6 +22,7 @@ const Alerts = lazy(() => import("@/pages/Alerts"));
 const Trust = lazy(() => import("@/pages/Trust"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const AuthFinish = lazy(() => import("@/pages/AuthFinish"));
+const Guide = lazy(() => import("@/pages/Guide"));
 
 function RouteFallback() {
   return (
@@ -71,6 +72,7 @@ function Router() {
         <Route path="/screener" component={Screener} />
         <Route path="/compare" component={Compare} />
         <Route path="/calculators" component={Calculators} />
+        <Route path="/guia" component={Guide} />
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/trust" component={Trust} />

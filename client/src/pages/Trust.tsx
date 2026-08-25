@@ -97,8 +97,14 @@ export default function Trust() {
           <TrustMetric
             icon={<Radio className="h-4 w-4" />}
             label="Estado de mercado"
-            value={quality.data?.isDemo ? "Demonstração" : "Fonte ativa"}
-            note={quality.data?.source ?? "Verificando origem"}
+            value={
+              quality.data?.status === "available"
+                ? "Fonte ativa"
+                : quality.isLoading
+                  ? "Verificando"
+                  : "Indisponível"
+            }
+            note={quality.data?.source ?? "Sem cotação de teste disponível"}
           />
           <TrustMetric
             icon={<LockKeyhole className="h-4 w-4" />}

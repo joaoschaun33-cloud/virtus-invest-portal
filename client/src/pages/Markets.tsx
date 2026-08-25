@@ -24,11 +24,11 @@ import {
   formatPercent,
   formatPrice,
   numberValue,
+  optionalNumberValue,
 } from "@/lib/formatters";
 import { useMarketRealtime } from "@/hooks/useMarketRealtime";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
 import { DataProvenance } from "@/components/DataProvenance";
-import { Sparkline } from "@/components/Sparkline";
 
 const types = [
   "Todos",
@@ -87,6 +87,9 @@ export default function Markets() {
     [assets]
   );
   const { quotes, connected } = useMarketRealtime(tickers);
+  const visibleAssets = assets.filter(
+    asset => asset.price !== null || quotes[asset.ticker]?.price !== undefined
+  );
   const serverWatchIds = useMemo(
     () => new Set((watchlistQuery.data ?? []).map(item => item.asset.id)),
     [watchlistQuery.data]
@@ -140,7 +143,7 @@ export default function Markets() {
             ) : (
               <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
                 <Wifi className="h-3 w-3" />
-                Polling / demonstração
+                Atualização periódica
               </span>
             )
           }
@@ -193,25 +196,25 @@ export default function Markets() {
         {tab === "Ativos" ? (
           <>
             <Panel className="overflow-hidden">
-              <div className="hidden grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 border-b border-border/60 bg-muted/20 px-5 py-3 text-[10px] font-semibold uppercase tracking-[.13em] text-muted-foreground md:grid">
+              <div className="hidden grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] gap-4 border-b border-border/60 bg-muted/20 px-5 py-3 text-[10px] font-semibold uppercase tracking-[.13em] text-muted-foreground md:grid">
                 <span>Ativo</span>
                 <span>Último</span>
                 <span>Variação</span>
-                <span>Tendência (7D)</span>
                 <span>Volume</span>
                 <span>Classe</span>
                 <span />
               </div>
               <div className="divide-y divide-border/60">
-                {assets.map(asset => {
+                {visibleAssets.map(asset => {
                   const live = quotes[asset.ticker];
-                  const price = live?.price ?? asset.lastPrice;
+                  const price = live?.price ?? asset.price;
                   const change = live?.changePercent ?? asset.changePercent;
+                  const numericChange = optionalNumberValue(change);
                   const isFav = watchIds.has(asset.id);
                   return (
                     <div
                       key={asset.id}
-                      className="grid gap-3 px-4 py-4 transition hover:bg-accent/45 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4 md:px-5"
+                      className="grid gap-3 px-4 py-4 transition hover:bg-accent/45 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4 md:px-5"
                     >
                       <Link
                         href={`/asset/${encodeURIComponent(asset.ticker)}`}
@@ -235,35 +238,21 @@ export default function Markets() {
                         <p className="text-sm font-semibold">
                           {formatPrice(price, asset.currency)}
                         </p>
-                        {live || asset.source !== "catalog" ? (
-                          <DataProvenance
-                            source={live?.source ?? asset.source}
-                            asOf={live?.asOf ?? asset.updatedAt}
-                            freshness="delayed"
-                            compact
-                          />
-                        ) : (
-                          <span className="mt-1 inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                            Demonstração
-                          </span>
-                        )}
-                      </div>
-                      <p
-                        className={`text-sm font-semibold ${numberValue(change) >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
-                      >
-                        {numberValue(change) >= 0 ? "+" : ""}
-                        {formatPercent(change)}
-                      </p>
-                      <div className="hidden md:flex md:items-center">
-                        <Sparkline
-                          changePercent={change}
-                          seed={asset.ticker}
-                          width={72}
-                          height={26}
+                        <DataProvenance
+                          source={live?.source ?? asset.source}
+                          asOf={live?.asOf ?? asset.fetchedAt}
+                          freshness={live ? "delayed" : asset.freshness}
+                          compact
                         />
                       </div>
+                      <p
+                        className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
+                      >
+                        {numericChange !== null && numericChange >= 0 ? "+" : ""}
+                        {formatPercent(change)}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {formatCompact(live?.volume ?? asset.dayVolume)}
+                        {formatCompact(live?.volume ?? asset.volume)}
                       </p>
                       <span className="w-fit rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
                         {assetTypeLabel[asset.assetType] ?? asset.assetType}
@@ -289,7 +278,7 @@ export default function Markets() {
                     </div>
                   );
                 })}
-                {!assets.length && (
+                {!visibleAssets.length && (
                   <div className="p-10 text-center text-sm text-muted-foreground">
                     Nenhum ativo encontrado para este filtro.
                   </div>
@@ -297,10 +286,10 @@ export default function Markets() {
               </div>
             </Panel>
             <div className="mt-5 flex items-center justify-between gap-4 text-xs text-muted-foreground">
-              <span>{assets.length} ativos no catálogo</span>
+              <span>{visibleAssets.length} ativos com cobertura</span>
               <span className="text-right">
-                {user ? "Watchlist sincronizada" : "Watchlist deste navegador"} ·
-                brapi.dev · Twelve Data · Finnhub
+                {user ? "Watchlist sincronizada" : "Watchlist deste navegador"}{" "}
+                · brapi.dev · CoinGecko · EODHD · Twelve Data · Finnhub
               </span>
             </div>
           </>
@@ -355,12 +344,13 @@ export default function Markets() {
                     </p>
                   </div>
                 ))}
-                {!treasuryQuery.data?.bonds.length && !treasuryQuery.isLoading && (
-                  <div className="p-10 text-center text-sm text-muted-foreground">
-                    Nenhum título disponível no momento. Tente novamente em
-                    instantes.
-                  </div>
-                )}
+                {!treasuryQuery.data?.bonds.length &&
+                  !treasuryQuery.isLoading && (
+                    <div className="p-10 text-center text-sm text-muted-foreground">
+                      Nenhum título disponível no momento. Tente novamente em
+                      instantes.
+                    </div>
+                  )}
                 {treasuryQuery.isLoading && (
                   <div className="p-10 text-center text-sm text-muted-foreground">
                     Carregando dados do Tesouro Nacional...

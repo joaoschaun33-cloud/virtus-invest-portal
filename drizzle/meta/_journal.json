@@ -22,6 +22,13 @@
       "when": 1787149870614,
       "tag": "0002_overconfident_molly_hayes",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787569496312,
+      "tag": "0003_lumpy_crystal",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import { assets } from "../drizzle/schema";
-import { getAllB3IndexConstituents, IndexConstituent } from "./b3IndexComposition";
+import {
+  getAllB3IndexConstituents,
+  IndexConstituent,
+} from "./b3IndexComposition";
 
 export type SeedResult = {
   totalConstituents: number;
@@ -23,7 +26,9 @@ export async function runB3IndexSeed(): Promise<SeedResult> {
     };
   }
 
-  const existingAssets = await db.select({ ticker: assets.ticker, id: assets.id }).from(assets);
+  const existingAssets = await db
+    .select({ ticker: assets.ticker, id: assets.id })
+    .from(assets);
   const existingSet = new Set(existingAssets.map(a => a.ticker));
 
   let inserted = 0;
@@ -39,9 +44,9 @@ export async function runB3IndexSeed(): Promise<SeedResult> {
         currency: c.currency,
         sector: c.sector ?? null,
         source: "b3",
-        lastPrice: "0",
-        changePercent: "0",
-        dayVolume: "0",
+        lastPrice: null,
+        changePercent: null,
+        dayVolume: null,
         isActive: 1,
       });
       inserted += 1;
@@ -59,7 +64,9 @@ export async function runB3IndexSeed(): Promise<SeedResult> {
     }
   }
 
-  const countResult = await db.select({ count: sql<number>`count(*)` }).from(assets);
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(assets);
   const totalInDatabase = Number(countResult[0]?.count ?? 0);
 
   return {

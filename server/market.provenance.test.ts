@@ -196,6 +196,36 @@ describe("market provenance contract", () => {
     });
   });
 
+  it("applies category filter to official news in the backend", async () => {
+    officialNewsMocks.fetchOfficialNews.mockResolvedValue([
+      {
+        headline: "Decisão macroeconômica",
+        summary: "Resumo macro",
+        sourceName: "Agência Brasil",
+        url: "https://agenciabrasil.ebc.com.br/macro",
+        publishedAt: new Date("2026-08-20T12:00:00Z"),
+        category: "Mercado",
+        source: "agencia-brasil",
+      },
+      {
+        headline: "Comunicado regulatório",
+        summary: "Resumo regulatório",
+        sourceName: "CVM",
+        url: "https://www.gov.br/cvm/regulacao",
+        publishedAt: new Date("2026-08-20T13:00:00Z"),
+        category: "Regulação",
+        source: "cvm",
+      },
+    ]);
+
+    const result = await marketRouter
+      .createCaller(context)
+      .news({ category: "Regulação" });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.category).toBe("Regulação");
+  });
+
   it("returns explicit demo provenance for editorial fallback without external calls", async () => {
     dbMocks.listNews.mockResolvedValue([
       {

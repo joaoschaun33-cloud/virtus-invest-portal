@@ -24,6 +24,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   Activity,
   Bell,
+  BookOpen,
   Calculator,
   GitCompareArrows,
   LayoutDashboard,
@@ -44,6 +45,7 @@ import { Input } from "./ui/input";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Visão geral", path: "/" },
+  { icon: BookOpen, label: "Guia do iniciante", path: "/guia" },
   { icon: Activity, label: "Mercados", path: "/markets" },
   { icon: Radar, label: "Screener", path: "/screener" },
   { icon: GitCompareArrows, label: "Comparar", path: "/compare" },
@@ -311,7 +313,7 @@ function DashboardLayoutContent({
                       {accountLabel}
                     </p>
                     <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.email || "Modo demonstração"}
+                      {user?.email || "Acesso público"}
                     </p>
                   </div>
                 </button>

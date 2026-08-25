@@ -6,14 +6,23 @@ type ChartPoint = {
   high: number;
   low: number;
   close: number;
-  volume: number;
-  sma20: number;
-  sma200: number;
-  rsi14: number;
+  volume: number | null;
+  sma20: number | null;
+  sma200: number | null;
+  rsi14: number | null;
 };
 
-function pathFor(values: number[], x: (index: number) => number, y: (value: number) => number) {
-  return values.map((value, index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(1)},${y(value).toFixed(1)}`).join(" ");
+function pathFor(values: Array<number | null>, x: (index: number) => number, y: (value: number) => number) {
+  let drawing = false;
+  return values.map((value, index) => {
+    if (value === null) {
+      drawing = false;
+      return "";
+    }
+    const command = drawing ? "L" : "M";
+    drawing = true;
+    return `${command}${x(index).toFixed(1)},${y(value).toFixed(1)}`;
+  }).filter(Boolean).join(" ");
 }
 
 export function MarketChart({ data, mode = "line" }: { data: ChartPoint[]; mode?: "line" | "candle" }) {
@@ -30,7 +39,7 @@ export function MarketChart({ data, mode = "line" }: { data: ChartPoint[]; mode?
     const range = Math.max(max - min, Math.abs(max) * 0.04, 1);
     const x = (index: number) => padding.left + (index / Math.max(1, safeData.length - 1)) * (width - padding.left - padding.right);
     const y = (value: number) => padding.top + (1 - (value - (min - range * .08)) / (range * 1.16)) * chartHeight;
-    const maxVolume = Math.max(...safeData.map(point => point.volume), 1);
+    const maxVolume = Math.max(...safeData.map(point => point.volume ?? 0), 1);
     return { safeData, width, height, padding, chartHeight, x, y, min, max, maxVolume };
   }, [data]);
 
@@ -40,7 +49,7 @@ export function MarketChart({ data, mode = "line" }: { data: ChartPoint[]; mode?
   const closes = visible.map(point => point.close);
   const sma20 = visible.map(point => point.sma20);
   const sma200 = visible.map(point => point.sma200);
-  const rsiPath = visible.map(point => 274 - (point.rsi14 / 100) * 28);
+  const rsiPath = visible.map(point => point.rsi14 === null ? null : 274 - (point.rsi14 / 100) * 28);
 
   return (
     <div className="w-full overflow-hidden rounded-xl bg-background/35 p-2">
@@ -74,9 +83,9 @@ export function MarketChart({ data, mode = "line" }: { data: ChartPoint[]; mode?
         }) : <path d={pathFor(closes, x, y)} fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
         <path d={pathFor(sma20, x, y)} fill="none" stroke="var(--chart-3)" strokeOpacity=".92" strokeWidth="1.4" />
         <path d={pathFor(sma200, x, y)} fill="none" stroke="var(--chart-4)" strokeOpacity=".86" strokeWidth="1.4" strokeDasharray="5 4" />
-        {visible.map((point, index) => <rect key={`v-${point.time}-${index}`} x={x(index) - candleWidth / 2} y={height - padding.bottom - (point.volume / maxVolume) * 42} width={candleWidth} height={(point.volume / maxVolume) * 42} fill="url(#apexVolume)" rx="1" />)}
+        {visible.map((point, index) => point.volume === null ? null : <rect key={`v-${point.time}-${index}`} x={x(index) - candleWidth / 2} y={height - padding.bottom - (point.volume / maxVolume) * 42} width={candleWidth} height={(point.volume / maxVolume) * 42} fill="url(#apexVolume)" rx="1" />)}
         <line x1={padding.left} x2={width - padding.right} y1="274" y2="274" stroke="currentColor" strokeOpacity=".14" />
-        <path d={rsiPath.map((value, index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(1)},${value.toFixed(1)}`).join(" ")} fill="none" stroke="var(--chart-5)" strokeWidth="1.5" />
+        <path d={pathFor(rsiPath, x, value => value)} fill="none" stroke="var(--chart-5)" strokeWidth="1.5" />
         <text x={padding.left} y={height - 12} className="fill-muted-foreground text-[10px]">RSI 14</text>
         <text x={width - padding.right} y={padding.top + 10} textAnchor="end" className="fill-muted-foreground text-[10px]">máx {max.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</text>
         <text x={width - padding.right} y={padding.top + chartHeight - 4} textAnchor="end" className="fill-muted-foreground text-[10px]">mín {min.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</text>

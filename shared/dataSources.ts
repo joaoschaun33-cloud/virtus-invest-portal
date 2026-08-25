@@ -8,6 +8,8 @@ export type DataSourceId =
   | "brapi"
   | "twelve-data"
   | "finnhub"
+  | "coingecko"
+  | "eodhd"
   | "virtus"
   | "catalog";
 
@@ -116,6 +118,26 @@ export const DATA_SOURCES = {
     scope:
       "Mercado internacional; exibição pública depende da licença contratada",
     website: "https://finnhub.io/",
+  },
+  coingecko: {
+    id: "coingecko",
+    name: "CoinGecko",
+    kind: "market-provider",
+    authority: "operational",
+    displayPolicy: "license-review",
+    scope:
+      "Cotações, mercado e histórico de criptoativos; exibição pública requer plano/licença compatível",
+    website: "https://www.coingecko.com/",
+  },
+  eodhd: {
+    id: "eodhd",
+    name: "EODHD",
+    kind: "market-provider",
+    authority: "operational",
+    displayPolicy: "license-review",
+    scope:
+      "Cotações e histórico de mercados globais; fundamentos dependem do plano",
+    website: "https://eodhd.com/",
   },
   virtus: {
     id: "virtus",

@@ -6,7 +6,7 @@ import { AppTopBar, PageHeader, Panel } from "@/components/apex/ApexPrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { formatPercent, formatPrice, numberValue } from "@/lib/formatters";
+import { formatPercent, formatPrice, numberValue, optionalNumberValue } from "@/lib/formatters";
 import { DataProvenance } from "@/components/DataProvenance";
 import { toast } from "sonner";
 
@@ -145,10 +145,10 @@ export default function Compare() {
               {snapshots.map(snapshot => {
                 if (!snapshot) return null;
                 const asset = snapshot.asset;
-                const change = numberValue(snapshot.quote.changePercent);
+                const change = optionalNumberValue(snapshot.quote.changePercent);
                 const ratio = Math.min(
                   100,
-                  (Math.abs(change) / maxChange) * 100
+                  ((change === null ? 0 : Math.abs(change)) / maxChange) * 100
                 );
                 return (
                   <div key={asset.ticker}>
@@ -160,15 +160,15 @@ export default function Compare() {
                         {asset.ticker}
                       </Link>
                       <span
-                        className={`text-sm font-semibold ${change >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
+                        className={`text-sm font-semibold ${change === null ? "text-muted-foreground" : change >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
                       >
-                        {change >= 0 ? "+" : ""}
+                        {change !== null && change >= 0 ? "+" : ""}
                         {formatPercent(change)}
                       </span>
                     </div>
                     <div className="h-3 overflow-hidden rounded-full bg-muted">
                       <div
-                        className={`h-full rounded-full transition-all ${change >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                        className={`h-full rounded-full transition-all ${change === null ? "bg-muted" : change >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
                         style={{ width: `${ratio}%` }}
                       />
                     </div>

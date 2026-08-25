@@ -29,6 +29,7 @@ import {
   formatPercent,
   formatPrice,
   numberValue,
+  optionalNumberValue,
 } from "@/lib/formatters";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
 import { DataProvenance } from "@/components/DataProvenance";
@@ -83,9 +84,8 @@ export default function AssetDetail() {
     asset && localWatchlist.ids.includes(asset.id)
   );
   const isFavorite = isServerFavorite || isLocalFavorite;
-  const lastPoint = snapshot?.quotes.at(-1);
-  const lastPrice = snapshot?.quote.price ?? asset?.lastPrice ?? 0;
-  const lastChange = numberValue(
+  const lastPrice = snapshot?.quote.price ?? null;
+  const lastChange = optionalNumberValue(
     snapshot?.quote.changePercent ?? asset?.changePercent
   );
   const snapshotSource = snapshot?.dataSource ?? "catalog";
@@ -234,9 +234,9 @@ export default function AssetDetail() {
                     {formatPrice(lastPrice, asset?.currency ?? "BRL")}
                   </span>
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lastChange >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/10 text-rose-600 dark:text-rose-300"}`}
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lastChange === null ? "bg-muted text-muted-foreground" : lastChange >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/10 text-rose-600 dark:text-rose-300"}`}
                   >
-                    {lastChange >= 0 ? "+" : ""}
+                    {lastChange !== null && lastChange >= 0 ? "+" : ""}
                     {formatPercent(lastChange)}
                   </span>
                 </div>
@@ -277,11 +277,11 @@ export default function AssetDetail() {
                   <span>Volume</span>
                 </div>
               </div>
-              {snapshot?.quotes ? (
+              {snapshot?.quotes?.length ? (
                 <MarketChart data={snapshot.quotes} mode={mode} />
               ) : (
                 <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
-                  Carregando série histórica...
+                  Histórico oficial indisponível para este período.
                 </div>
               )}
             </div>
@@ -304,7 +304,7 @@ export default function AssetDetail() {
                   ["DY", asset?.dividendYield, "%"],
                   ["ROE", asset?.roe, "%"],
                   ["Margem líquida", asset?.netMargin, "%"],
-                  ["Volume", formatCompact(asset?.dayVolume)],
+                  ["Volume", formatCompact(snapshot?.quote.volume)],
                   ["EBITDA", advancedAsset?.ebitda],
                   ["Dívida líquida", advancedAsset?.netDebt],
                   ["Crescimento do lucro", advancedAsset?.earningsGrowth, "%"],
@@ -443,7 +443,7 @@ export default function AssetDetail() {
                   <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                   Fonte do histórico:{" "}
                   {snapshotSource === "catalog"
-                    ? "catálogo de demonstração"
+                    ? "indisponível"
                     : snapshotSource}
                   .
                 </p>
@@ -455,7 +455,7 @@ export default function AssetDetail() {
                   <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                   Fundamentos:{" "}
                   {fundamentalsSource === "catalog"
-                    ? "catálogo de demonstração"
+                    ? "indisponíveis"
                     : fundamentalsSource}{" "}
                   · moeda: {asset?.currency ?? "BRL"}.
                 </p>
@@ -534,7 +534,7 @@ export default function AssetDetail() {
             <p className="text-xs text-muted-foreground">Abertura</p>
             <p className="mt-2 text-xl font-semibold">
               {formatPrice(
-                snapshot?.quote.open ?? asset?.lastPrice,
+                snapshot?.quote.open,
                 asset?.currency ?? "BRL"
               )}
             </p>
@@ -543,7 +543,7 @@ export default function AssetDetail() {
             <p className="text-xs text-muted-foreground">Máxima da cotação</p>
             <p className="mt-2 text-xl font-semibold">
               {formatPrice(
-                snapshot?.quote.high ?? asset?.lastPrice,
+                snapshot?.quote.high,
                 asset?.currency ?? "BRL"
               )}
             </p>
@@ -551,7 +551,7 @@ export default function AssetDetail() {
           <div className="metric-card">
             <p className="text-xs text-muted-foreground">Volume negociado</p>
             <p className="mt-2 text-xl font-semibold">
-              {formatCompact(snapshot?.quote.volume ?? asset?.dayVolume)}
+              {formatCompact(snapshot?.quote.volume)}
             </p>
           </div>
         </div>

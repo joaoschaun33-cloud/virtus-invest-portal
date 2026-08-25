@@ -35,6 +35,11 @@ const metadata: Record<
     description:
       "Simule juros compostos, renda passiva e cenários financeiros para fins educacionais.",
   },
+  "/guia": {
+    title: "Guia do iniciante",
+    description:
+      "Aprenda os conceitos essenciais de investimentos e conheça as ferramentas do Virtus no seu ritmo.",
+  },
   "/portfolio": {
     title: "Carteira",
     description: "Organize e acompanhe sua carteira manual no Virtus.",

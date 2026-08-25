@@ -136,6 +136,61 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 
+export const emailDeliveries = mysqlTable(
+  "emailDeliveries",
+  {
+    id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+    idempotencyKey: varchar("idempotencyKey", { length: 191 }).notNull(),
+    status: mysqlEnum("status", ["pending", "sent", "failed"])
+      .notNull()
+      .default("pending"),
+    attempts: int("attempts").notNull().default(0),
+    lastError: text("lastError"),
+    resendId: varchar("resendId", { length: 128 }),
+    sentAt: timestamp("sentAt"),
+    expiresAt: timestamp("expiresAt").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    idempotencyKeyIndex: uniqueIndex("email_deliveries_idempotency_key_idx").on(
+      table.idempotencyKey
+    ),
+  })
+);
+
+export type EmailDelivery = typeof emailDeliveries.$inferSelect;
+
+export const jobRuns = mysqlTable(
+  "jobRuns",
+  {
+    id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+    jobName: varchar("jobName", { length: 80 }).notNull(),
+    runId: varchar("runId", { length: 64 }).notNull(),
+    requestId: varchar("requestId", { length: 128 }),
+    status: mysqlEnum("status", ["running", "succeeded", "failed", "skipped"])
+      .notNull()
+      .default("running"),
+    startedAt: timestamp("startedAt").defaultNow().notNull(),
+    finishedAt: timestamp("finishedAt"),
+    durationMs: int("durationMs"),
+    processed: int("processed").notNull().default(0),
+    failed: int("failed").notNull().default(0),
+    error: text("error"),
+    details: text("details"),
+  },
+  table => ({
+    runIdIndex: uniqueIndex("job_runs_run_id_idx").on(table.runId),
+    jobStartedIndex: uniqueIndex("job_runs_job_started_idx").on(
+      table.jobName,
+      table.startedAt,
+      table.runId
+    ),
+  })
+);
+
+export type JobRun = typeof jobRuns.$inferSelect;
+
 export const news = mysqlTable("news", {
   id: int("id").autoincrement().primaryKey(),
   assetId: int("assetId"),

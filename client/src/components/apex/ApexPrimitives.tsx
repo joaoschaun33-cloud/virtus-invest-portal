@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
-import { formatPercent, formatPrice } from "@/lib/formatters";
+import { formatPercent, formatPrice, optionalNumberValue } from "@/lib/formatters";
 import { VirtusBrand } from "@/components/VirtusBrand";
 
 export function Panel({
@@ -133,12 +133,13 @@ export function MetricCard({
 }: {
   label: string;
   value: unknown;
-  change?: number;
+  change?: number | null;
   currency?: string;
   note?: string;
   accent?: "default" | "blue" | "green" | "orange";
   footer?: React.ReactNode;
 }) {
+  if (optionalNumberValue(value) === null) return null;
   const positive = Number(change) > 0;
   const negative = Number(change) < 0;
   return (
@@ -152,7 +153,7 @@ export function MetricCard({
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        {change !== undefined && (
+        {change !== undefined && change !== null && (
           <span
             className={cn(
               "inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-[11px] font-semibold",
@@ -195,7 +196,7 @@ export function AssetLink({
   change?: unknown;
   currency?: string;
 }) {
-  const numericChange = Number(change ?? 0);
+  const numericChange = optionalNumberValue(change);
   return (
     <Link
       href={`/asset/${encodeURIComponent(ticker)}`}
@@ -214,13 +215,15 @@ export function AssetLink({
         <p
           className={cn(
             "text-xs font-medium",
-            numericChange >= 0
+            numericChange === null
+              ? "text-muted-foreground"
+              : numericChange >= 0
               ? "text-emerald-700 dark:text-emerald-300"
               : "text-rose-700 dark:text-rose-300"
           )}
         >
-          {numericChange >= 0 ? "+" : ""}
-          {formatPercent(numericChange)}
+          {numericChange !== null && numericChange >= 0 ? "+" : ""}
+          {formatPercent(change)}
         </p>
       </div>
     </Link>

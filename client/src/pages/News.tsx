@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import {
   CalendarDays,
   ExternalLink,
@@ -13,7 +14,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { AppTopBar, PageHeader, Panel } from "@/components/apex/ApexPrimitives";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { formatDate, formatRelativeDate } from "@/lib/formatters";
+import {
+  formatDate,
+  formatPlainText,
+  formatRelativeDate,
+} from "@/lib/formatters";
 
 const categories = [
   "Todas",
@@ -45,7 +50,7 @@ export default function News() {
       (newsQuery.data ?? []).filter(
         item =>
           !search ||
-          `${item.title} ${item.summary ?? ""}`
+          `${item.title} ${formatPlainText(item.summary)}`
             .toLowerCase()
             .includes(search.toLowerCase())
       ),
@@ -80,10 +85,10 @@ export default function News() {
                 Compliance editorial e transparência
               </h2>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                O Virtus agrega metadados, resumos e links de fontes públicas e
-                feeds parceiros devidamente licenciados. Não republicamos
-                artigos na íntegra sem autorização e garantimos que todo o
-                conteúdo possui caráter estritamente informativo e analítico.
+                O Virtus organiza títulos, resumos e links de fontes públicas,
+                preservando a atribuição e o acesso ao conteúdo original. Não
+                republicamos artigos na íntegra; o feed possui caráter
+                estritamente informativo.
               </p>
             </div>
           </div>
@@ -93,10 +98,8 @@ export default function News() {
           <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-xs leading-5 text-amber-800 dark:text-amber-200">
             <Info className="h-4 w-4 shrink-0" />
             <span>
-              <strong>Feed de demonstração.</strong> As entradas visíveis estão
-              identificadas como catálogo porque nenhuma fonte editorial
-              respondeu. Origem verificada:{" "}
-              {editorialStatusQuery.data?.newsSource ?? "catálogo"}.
+              <strong>Notícias temporariamente indisponíveis.</strong> Nenhuma
+              fonte editorial respondeu; não exibimos conteúdo substituto.
             </span>
           </div>
         )}
@@ -143,42 +146,48 @@ export default function News() {
 
             <div className="space-y-3">
               {news.map(item => (
-                <a
+                <div
                   key={item.id}
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
                   className="group block"
                 >
                   <Panel className="p-5 transition duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-primary">
-                        <span>{item.category}</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span className="text-muted-foreground">
-                          {item.sourceName === "catalog"
-                            ? "Demonstração"
-                            : item.sourceName}
-                        </span>
+                    <a href={item.url} target="_blank" rel="noreferrer" className="block">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-primary">
+                          <span>{item.category}</span>
+                          <span className="text-muted-foreground">·</span>
+                          <span className="text-muted-foreground">
+                            {item.sourceName === "catalog"
+                              ? "Indisponível"
+                              : item.sourceName}
+                          </span>
+                        </div>
+                        <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" />
                       </div>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" />
-                    </div>
-                    <h2 className="mt-3 max-w-2xl text-base font-semibold leading-6 tracking-[-.02em] group-hover:text-primary">
-                      {item.title}
-                    </h2>
-                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                      {item.summary}
-                    </p>
+                      <h2 className="mt-3 max-w-2xl text-base font-semibold leading-6 tracking-[-.02em] group-hover:text-primary">
+                        {item.title}
+                      </h2>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                        {formatPlainText(item.summary) ||
+                          "Leia a notícia completa na fonte oficial."}
+                      </p>
+                    </a>
                     <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
                       <span>{formatRelativeDate(item.publishedAt)}</span>
-                      {item.assetId && (
-                        <span className="rounded-full bg-muted px-2 py-1 font-medium">
-                          Ativo #{item.assetId}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {(item.relatedTickers ?? []).map(ticker => (
+                          <Link
+                            key={ticker}
+                            href={`/asset/${encodeURIComponent(ticker)}`}
+                            className="rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary transition hover:bg-primary/20"
+                          >
+                            {ticker}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   </Panel>
-                </a>
+                </div>
               ))}
               {!news.length && (
                 <Panel className="p-10 text-center text-sm text-muted-foreground">
@@ -199,8 +208,7 @@ export default function News() {
                   </p>
                   {calendarIsDemo ? (
                     <span className="mt-2 inline-flex rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                      Catálogo ·{" "}
-                      {editorialStatusQuery.data?.calendarSource ?? "catalog"}
+                      Temporariamente indisponível
                     </span>
                   ) : (
                     <span className="mt-2 inline-flex rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
@@ -236,10 +244,13 @@ export default function News() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {item.category} · {item.country}
                         </p>
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          Anterior: {item.previous ?? "—"} · Consenso:{" "}
-                          {item.forecast ?? "—"}
-                        </p>
+                        {(item.previous || item.forecast) && (
+                          <p className="mt-2 text-[11px] text-muted-foreground">
+                            {item.previous && `Anterior: ${item.previous}`}
+                            {item.previous && item.forecast && " · "}
+                            {item.forecast && `Consenso: ${item.forecast}`}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

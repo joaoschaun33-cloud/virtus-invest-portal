@@ -13,6 +13,7 @@
     "test:official-sources": "tsx scripts/check-official-sources.ts",
     "ingest:cvm-financials": "tsx scripts/ingest-cvm-financials.ts",
     "seed:b3-indexes": "tsx scripts/seed-b3-indexes.ts",
+    "ingest:b3-cotahist": "tsx scripts/ingest-b3-cotahist.ts",
     "test:isolation:production": "tsx scripts/production-isolation.ts",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },

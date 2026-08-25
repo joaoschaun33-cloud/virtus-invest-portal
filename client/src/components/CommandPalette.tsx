@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { BarChart3, BellRing, BriefcaseBusiness, Calculator, GitCompareArrows, LayoutDashboard, ListFilter, Newspaper, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { BarChart3, BellRing, BookOpen, BriefcaseBusiness, Calculator, GitCompareArrows, LayoutDashboard, ListFilter, Newspaper, Search, ShieldCheck, Sparkles } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -14,6 +14,7 @@ import { trpc } from "@/lib/trpc";
 
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard, shortcut: "G H" },
+  { label: "Guia do iniciante", path: "/guia", icon: BookOpen },
   { label: "Mercados", path: "/markets", icon: BarChart3, shortcut: "G M" },
   { label: "Screener", path: "/screener", icon: ListFilter, shortcut: "G S" },
   { label: "Comparar ativos", path: "/compare", icon: GitCompareArrows },
@@ -78,7 +79,7 @@ export default function CommandPalette({ open, onOpenChange }: { open: boolean; 
           ))}
         </CommandGroup>
         <CommandGroup heading="Ações rápidas">
-          <CommandItem value="modo demonstração transparência" onSelect={() => navigate("/news")} className="rounded-xl px-3 py-3">
+          <CommandItem value="transparência origem dados" onSelect={() => navigate("/news")} className="rounded-xl px-3 py-3">
             <Sparkles className="h-4 w-4 text-primary" />
             <span>Ver origem dos dados e avisos editoriais</span>
           </CommandItem>

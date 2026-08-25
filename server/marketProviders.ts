@@ -1,16 +1,22 @@
 import { marketSourceOrder, type MarketProviderId } from "./dataSourcePolicy";
 import type { MarketDataFreshness } from "../shared/marketData";
 
-export type ProviderSource = "brapi" | "twelve-data" | "finnhub" | "catalog";
+export type ProviderSource =
+  | "brapi"
+  | "twelve-data"
+  | "finnhub"
+  | "coingecko"
+  | "eodhd"
+  | "catalog";
 
 export type ProviderQuote = {
   ticker: string;
   price: number;
-  changePercent: number;
-  volume: number;
-  open: number;
-  high: number;
-  low: number;
+  changePercent: number | null;
+  volume: number | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
   source: ProviderSource;
   asOf: string;
   freshness: MarketDataFreshness;
@@ -23,7 +29,7 @@ export type ProviderCandle = {
   high: number;
   low: number;
   close: number;
-  volume: number;
+  volume: number | null;
   source: Exclude<ProviderSource, "catalog">;
 };
 
@@ -70,6 +76,8 @@ export type ProviderStatus = {
   brapi: boolean;
   twelveData: boolean;
   finnhub: boolean;
+  coinGecko: boolean;
+  eodhd: boolean;
   resend: boolean;
 };
 
@@ -106,6 +114,20 @@ export const PROVIDER_COVERAGE: Record<
     news: true,
     calendar: true,
   },
+  coingecko: {
+    quotes: true,
+    history: true,
+    fundamentals: false,
+    news: false,
+    calendar: false,
+  },
+  eodhd: {
+    quotes: true,
+    history: true,
+    fundamentals: false,
+    news: false,
+    calendar: false,
+  },
 };
 
 const timeoutMs = 6500;
@@ -113,6 +135,7 @@ const responseCache = new Map<
   string,
   { expiresAt: number; payload: unknown }
 >();
+const pendingResponses = new Map<string, Promise<any | null>>();
 const responseCacheTtlMs = 60_000;
 // Keep the provider cache aligned with the realtime polling contract. The UI
 // may request every 30 seconds; it must not receive a 20-minute-old quote while
@@ -164,6 +187,8 @@ function quoteSymbol(
 }
 
 export function hasLiveQuoteCoverage(ticker: string, assetType: string) {
+  if (assetType.toUpperCase() === "CRYPTO" && coinGeckoId(ticker)) return true;
+  if (eodhdSymbol(ticker, assetType)) return true;
   return (["brapi", "twelve-data", "finnhub"] as const).some(provider =>
     Boolean(quoteSymbol(ticker, assetType, provider))
   );
@@ -171,11 +196,44 @@ export function hasLiveQuoteCoverage(ticker: string, assetType: string) {
 
 async function fetchJson(
   url: string,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  cacheTtlMs = responseCacheTtlMs
 ): Promise<any | null> {
-  const cacheKey = `${url}|${headers.Authorization ? "authenticated" : "public"}`;
+  const parsed = new URL(url);
+  for (const secret of [
+    "api_token",
+    "apikey",
+    "token",
+    "x_cg_demo_api_key",
+    "x_cg_pro_api_key",
+  ])
+    if (parsed.searchParams.has(secret))
+      parsed.searchParams.set(secret, "[credential]");
+  const authenticated = Object.keys(headers).some(key =>
+    ["authorization", "x-cg-demo-api-key", "x-cg-pro-api-key"].includes(
+      key.toLowerCase()
+    )
+  );
+  const cacheKey = `${parsed.toString()}|${authenticated ? "authenticated" : "public"}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.payload;
+  const pending = pendingResponses.get(cacheKey);
+  if (pending) return pending;
+  const request = fetchJsonUncached(url, headers, cacheKey, cacheTtlMs);
+  pendingResponses.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    pendingResponses.delete(cacheKey);
+  }
+}
+
+async function fetchJsonUncached(
+  url: string,
+  headers: Record<string, string>,
+  cacheKey: string,
+  cacheTtlMs: number
+): Promise<any | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -187,7 +245,7 @@ async function fetchJson(
     const payload = await response.json();
     if (payload?.status === "error" || payload?.code >= 400) return null;
     responseCache.set(cacheKey, {
-      expiresAt: Date.now() + responseCacheTtlMs,
+      expiresAt: Date.now() + cacheTtlMs,
       payload,
     });
     return payload;
@@ -196,6 +254,47 @@ async function fetchJson(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+const coinGeckoIds: Record<string, string> = {
+  "BTC/USD": "bitcoin",
+  BTC: "bitcoin",
+  "ETH/USD": "ethereum",
+  ETH: "ethereum",
+  "SOL/USD": "solana",
+  SOL: "solana",
+};
+
+function coinGeckoId(ticker: string) {
+  return coinGeckoIds[ticker.trim().toUpperCase()] ?? null;
+}
+
+function coinGeckoConfig() {
+  const apiKey = process.env.COINGECKO_API_KEY;
+  if (!apiKey) return null;
+  const pro = process.env.COINGECKO_PLAN?.toLowerCase() === "pro";
+  return {
+    apiKey,
+    baseUrl: pro
+      ? "https://pro-api.coingecko.com/api/v3"
+      : "https://api.coingecko.com/api/v3",
+    header: pro ? "x-cg-pro-api-key" : "x-cg-demo-api-key",
+  };
+}
+
+function eodhdSymbol(ticker: string, assetType: string) {
+  const normalized = ticker.trim().toUpperCase();
+  const known: Record<string, string> = {
+    IBOV: "BVSP.INDX",
+    "BTC/USD": "BTC-USD.CC",
+    "ETH/USD": "ETH-USD.CC",
+    "SOL/USD": "SOL-USD.CC",
+    "EUR/USD": "EURUSD.FOREX",
+  };
+  if (known[normalized]) return known[normalized];
+  if (["STOCK", "REIT", "ETF"].includes(assetType.toUpperCase()))
+    return `${normalized}.SA`;
+  return null;
 }
 
 function numberOr(value: unknown, fallback = 0) {
@@ -237,15 +336,19 @@ function normalizeQuote(
 ): ProviderQuote | null {
   const normalizedPrice = numberOr(price);
   if (!normalizedPrice) return null;
+  const normalizedVolume = optionalNumber(volume);
   const asOf = normalizeProviderTimestamp(providerAsOf);
   return {
     ticker,
     price: normalizedPrice,
-    changePercent: numberOr(changePercent),
-    volume: numberOr(volume),
-    open: numberOr(open, normalizedPrice),
-    high: numberOr(high, normalizedPrice),
-    low: numberOr(low, normalizedPrice),
+    changePercent: optionalNumber(changePercent) ?? null,
+    volume:
+      normalizedVolume !== undefined && normalizedVolume > 0
+        ? normalizedVolume
+        : null,
+    open: optionalNumber(open) ?? null,
+    high: optionalNumber(high) ?? null,
+    low: optionalNumber(low) ?? null,
     source,
     asOf,
     freshness: "delayed",
@@ -323,6 +426,61 @@ async function fetchFinnhub(ticker: string, assetType: string) {
   );
 }
 
+async function fetchCoinGecko(ticker: string, assetType: string) {
+  if (assetType.toUpperCase() !== "CRYPTO") return null;
+  const id = coinGeckoId(ticker);
+  const config = coinGeckoConfig();
+  if (!id || !config) return null;
+  const payload = await fetchJson(
+    `${config.baseUrl}/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true&include_last_updated_at=true`,
+    { [config.header]: config.apiKey },
+    20_000
+  );
+  const value = payload?.[id];
+  const price = numberOr(value?.usd);
+  const changePercent = numberOr(value?.usd_24h_change);
+  return normalizeQuote(
+    ticker,
+    price,
+    changePercent,
+    value?.usd_24h_vol,
+    null,
+    null,
+    null,
+    "coingecko",
+    value?.last_updated_at
+  );
+}
+
+async function fetchEodhd(ticker: string, assetType: string) {
+  const token = process.env.EODHD_API_TOKEN;
+  const symbol = eodhdSymbol(ticker, assetType);
+  if (!token || !symbol) return null;
+  const payload = await fetchJson(
+    `https://eodhd.com/api/real-time/${encodeURIComponent(symbol)}?api_token=${encodeURIComponent(token)}&fmt=json`,
+    {},
+    60_000
+  );
+  const close = payload?.close;
+  const previousClose = optionalNumber(payload?.previousClose);
+  const changePercent =
+    payload?.change_p ??
+    (previousClose
+      ? ((numberOr(close) - previousClose) / previousClose) * 100
+      : null);
+  return normalizeQuote(
+    ticker,
+    close,
+    changePercent,
+    payload?.volume,
+    payload?.open,
+    payload?.high,
+    payload?.low,
+    "eodhd",
+    payload?.timestamp
+  );
+}
+
 export async function fetchLiveQuote(
   ticker: string,
   assetType: string
@@ -334,6 +492,8 @@ export async function fetchLiveQuote(
     brapi: () => fetchBrapi(ticker, assetType),
     "twelve-data": () => fetchTwelveData(ticker, assetType),
     finnhub: () => fetchFinnhub(ticker, assetType),
+    coingecko: () => fetchCoinGecko(ticker, assetType),
+    eodhd: () => fetchEodhd(ticker, assetType),
   };
   const quote = await firstSuccessful(
     marketSourceOrder("quote", { assetType }),
@@ -372,15 +532,27 @@ function normalizeCandle(
     typeof time === "number"
       ? new Date(time < 10_000_000_000 ? time * 1000 : time)
       : new Date(String(time));
-  const normalizedClose = numberOr(close);
-  if (!normalizedClose || Number.isNaN(timestamp.valueOf())) return null;
+  const normalizedClose = optionalNumber(close);
+  const normalizedOpen = optionalNumber(open);
+  const normalizedHigh = optionalNumber(high);
+  const normalizedLow = optionalNumber(low);
+  if (
+    !normalizedClose ||
+    normalizedOpen === undefined ||
+    normalizedHigh === undefined ||
+    normalizedLow === undefined ||
+    Number.isNaN(timestamp.valueOf())
+  ) return null;
   return {
     time: timestamp,
-    open: numberOr(open, normalizedClose),
-    high: numberOr(high, normalizedClose),
-    low: numberOr(low, normalizedClose),
+    open: normalizedOpen,
+    high: normalizedHigh,
+    low: normalizedLow,
     close: normalizedClose,
-    volume: numberOr(volume),
+    volume: (() => {
+      const value = optionalNumber(volume);
+      return value !== undefined && value > 0 ? value : null;
+    })(),
     source,
   };
 }
@@ -394,11 +566,10 @@ function intervalToTwelveData(interval: string) {
 async function fetchBrapiHistory(ticker: string, outputsize = 180) {
   const symbol = catalogProviderSymbols[ticker.toUpperCase()]?.brapi ?? ticker;
   const payload = await fetchBrapiPayload(symbol, `&range=5y&interval=1d`);
-  const values = (
+  const values =
     payload?.results?.[0]?.historicalDataPrice ??
     payload?.results?.[0]?.historicalData ??
-    []
-  );
+    [];
   const normalized = values
     .map((row: any) =>
       normalizeCandle(
@@ -411,8 +582,14 @@ async function fetchBrapiHistory(ticker: string, outputsize = 180) {
         row.volume
       )
     )
-    .filter((candle: ProviderCandle | null): candle is ProviderCandle => candle !== null);
-  normalized.sort((a: ProviderCandle, b: ProviderCandle) => a.time.valueOf() - b.time.valueOf());
+    .filter(
+      (candle: ProviderCandle | null): candle is ProviderCandle =>
+        candle !== null
+    );
+  normalized.sort(
+    (a: ProviderCandle, b: ProviderCandle) =>
+      a.time.valueOf() - b.time.valueOf()
+  );
   return normalized.slice(-outputsize);
 }
 
@@ -438,8 +615,14 @@ async function fetchTwelveDataHistory(
         row.volume
       )
     )
-    .filter((candle: ProviderCandle | null): candle is ProviderCandle => candle !== null);
-  normalized.sort((a: ProviderCandle, b: ProviderCandle) => a.time.valueOf() - b.time.valueOf());
+    .filter(
+      (candle: ProviderCandle | null): candle is ProviderCandle =>
+        candle !== null
+    );
+  normalized.sort(
+    (a: ProviderCandle, b: ProviderCandle) =>
+      a.time.valueOf() - b.time.valueOf()
+  );
   return normalized.slice(-outputsize);
 }
 
@@ -464,9 +647,95 @@ async function fetchFinnhubHistory(ticker: string, outputsize = 180) {
         payload.v?.[index]
       )
     )
-    .filter((candle: ProviderCandle | null): candle is ProviderCandle => candle !== null);
-  normalized.sort((a: ProviderCandle, b: ProviderCandle) => a.time.valueOf() - b.time.valueOf());
+    .filter(
+      (candle: ProviderCandle | null): candle is ProviderCandle =>
+        candle !== null
+    );
+  normalized.sort(
+    (a: ProviderCandle, b: ProviderCandle) =>
+      a.time.valueOf() - b.time.valueOf()
+  );
   return normalized.slice(-outputsize);
+}
+
+function coinGeckoOhlcDays(outputsize: number) {
+  if (outputsize <= 7) return 7;
+  if (outputsize <= 14) return 14;
+  if (outputsize <= 30) return 30;
+  if (outputsize <= 90) return 90;
+  if (outputsize <= 180) return 180;
+  return 365;
+}
+
+async function fetchCoinGeckoHistory(
+  ticker: string,
+  assetType: string,
+  outputsize = 180
+) {
+  if (assetType.toUpperCase() !== "CRYPTO") return [];
+  const id = coinGeckoId(ticker);
+  const config = coinGeckoConfig();
+  if (!id || !config) return [];
+  const days = coinGeckoOhlcDays(outputsize);
+  const payload = await fetchJson(
+    `${config.baseUrl}/coins/${encodeURIComponent(id)}/ohlc?vs_currency=usd&days=${days}`,
+    { [config.header]: config.apiKey },
+    15 * 60_000
+  );
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .map((row: unknown[]) =>
+      normalizeCandle(
+        "coingecko",
+        row?.[0],
+        row?.[1],
+        row?.[2],
+        row?.[3],
+        row?.[4],
+        null
+      )
+    )
+    .filter(
+      (candle: ProviderCandle | null): candle is ProviderCandle =>
+        candle !== null
+    )
+    .slice(-outputsize);
+}
+
+async function fetchEodhdHistory(
+  ticker: string,
+  assetType: string,
+  outputsize = 180
+) {
+  const token = process.env.EODHD_API_TOKEN;
+  const symbol = eodhdSymbol(ticker, assetType);
+  if (!token || !symbol) return [];
+  const from = new Date(Date.now() - Math.max(outputsize * 2, 30) * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const payload = await fetchJson(
+    `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}?api_token=${encodeURIComponent(token)}&fmt=json&period=d&order=a&from=${from}`,
+    {},
+    15 * 60_000
+  );
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .map((row: any) =>
+      normalizeCandle(
+        "eodhd",
+        row.date,
+        row.open,
+        row.high,
+        row.low,
+        row.adjusted_close ?? row.close,
+        row.volume
+      )
+    )
+    .filter(
+      (candle: ProviderCandle | null): candle is ProviderCandle =>
+        candle !== null
+    )
+    .slice(-outputsize);
 }
 
 export async function fetchHistoricalCandles(
@@ -482,6 +751,8 @@ export async function fetchHistoricalCandles(
         : Promise.resolve([]),
     "twelve-data": () => fetchTwelveDataHistory(ticker, interval, outputsize),
     finnhub: () => fetchFinnhubHistory(ticker, outputsize),
+    coingecko: () => fetchCoinGeckoHistory(ticker, assetType, outputsize),
+    eodhd: () => fetchEodhdHistory(ticker, assetType, outputsize),
   };
   return (
     (await firstSuccessful(
@@ -590,12 +861,81 @@ export async function fetchFundamentals(ticker: string, assetType: string) {
     brapi: () => fetchBrapiFundamentals(ticker),
     "twelve-data": () => fetchTwelveDataFundamentals(ticker),
     finnhub: () => fetchFinnhubFundamentals(ticker),
+    coingecko: () => Promise.resolve(null),
+    // The validated EODHD plan returns 403 for fundamentals. Keep this adapter
+    // disabled until that module is explicitly enabled in configuration.
+    eodhd: () => Promise.resolve(null),
   };
   return firstSuccessful(
     marketSourceOrder("fundamentals", { assetType }),
     source => adapters[source](),
     result => Boolean(result)
   );
+}
+
+function approvedProviderNewsUrl(value: unknown) {
+  try {
+    const parsed = new URL(String(value ?? ""));
+    return parsed.protocol === "https:" && parsed.hostname
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function providerNewsDate(value: unknown) {
+  const date =
+    typeof value === "number"
+      ? new Date(value < 10_000_000_000 ? value * 1000 : value)
+      : new Date(String(value ?? ""));
+  return Number.isNaN(date.valueOf()) ? null : date;
+}
+
+export function normalizeProviderNewsItem(
+  item: any,
+  source: Exclude<ProviderSource, "catalog">,
+  ticker: string,
+  defaults: {
+    title?: unknown;
+    summary?: unknown;
+    date?: unknown;
+    url?: unknown;
+  } = {}
+): ProviderNewsItem | null {
+  const headline = String(item?.headline ?? item?.title ?? defaults.title ?? "")
+    .trim()
+    .slice(0, 240);
+  const url = approvedProviderNewsUrl(item?.url ?? defaults.url);
+  const publishedAt = providerNewsDate(
+    item?.datetime ?? item?.published_at ?? defaults.date
+  );
+  if (!headline || !url || !publishedAt) return null;
+  const rawSummary = item?.summary ?? item?.description ?? defaults.summary;
+  const summary = rawSummary
+    ? String(rawSummary).trim().slice(0, 600)
+    : undefined;
+  return {
+    headline,
+    summary,
+    sourceName:
+      String(item?.source ?? item?.sourceName ?? source).trim() || source,
+    url,
+    image: typeof item?.image === "string" ? item.image : undefined,
+    publishedAt,
+    relatedTicker: ticker,
+    source,
+  };
+}
+
+function deduplicateProviderNews(items: Array<ProviderNewsItem | null>) {
+  return Array.from(
+    new Map(
+      items
+        .filter((item): item is ProviderNewsItem => Boolean(item))
+        .map(item => [item.url, item])
+    ).values()
+  ).slice(0, 20);
 }
 
 export async function fetchProviderNews(ticker: string, days = 7) {
@@ -612,16 +952,13 @@ export async function fetchProviderNews(ticker: string, days = 7) {
       `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}&token=${encodeURIComponent(finnhubToken)}`
     );
     if (Array.isArray(payload)) {
-      return payload.slice(0, 20).map((item: any) => ({
-        headline: String(item.headline ?? "Notícia de mercado"),
-        summary: item.summary,
-        sourceName: String(item.source ?? "Finnhub"),
-        url: String(item.url ?? "https://finnhub.io/"),
-        image: item.image,
-        publishedAt: new Date(numberOr(item.datetime) * 1000),
-        relatedTicker: ticker,
-        source: "finnhub" as const,
-      }));
+      return deduplicateProviderNews(
+        payload
+          .slice(0, 20)
+          .map((item: any) =>
+            normalizeProviderNewsItem(item, "finnhub", ticker)
+          )
+      );
     }
   }
   if (sourceOrder.includes("twelve-data") && twelveToken) {
@@ -630,16 +967,11 @@ export async function fetchProviderNews(ticker: string, days = 7) {
     );
     const values = payload?.data ?? payload?.news;
     if (Array.isArray(values))
-      return values.map((item: any) => ({
-        headline: String(item.title ?? item.headline ?? "Notícia de mercado"),
-        summary: item.description ?? item.summary,
-        sourceName: String(item.source ?? "Twelve Data"),
-        url: String(item.url ?? "https://twelvedata.com/"),
-        image: item.image,
-        publishedAt: new Date(item.datetime ?? item.published_at ?? Date.now()),
-        relatedTicker: ticker,
-        source: "twelve-data" as const,
-      }));
+      return deduplicateProviderNews(
+        values.map((item: any) =>
+          normalizeProviderNewsItem(item, "twelve-data", ticker)
+        )
+      );
   }
   return [] as ProviderNewsItem[];
 }
@@ -702,6 +1034,8 @@ export function getProviderStatus(): ProviderStatus {
     brapi: Boolean(process.env.BRAPI_API_KEY),
     twelveData: Boolean(process.env.TWELVE_DATA_API_KEY),
     finnhub: Boolean(process.env.FINNHUB_API_KEY),
+    coinGecko: Boolean(process.env.COINGECKO_API_KEY),
+    eodhd: Boolean(process.env.EODHD_API_TOKEN),
     resend: Boolean(
       process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL
     ),

@@ -36,6 +36,7 @@ import {
   formatPrice,
   formatRelativeDate,
   numberValue,
+  optionalNumberValue,
 } from "@/lib/formatters";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { DataProvenance } from "@/components/DataProvenance";
@@ -66,6 +67,7 @@ const tickerLabels: Record<string, string> = {
 };
 
 function changeClass(change: unknown) {
+  if (optionalNumberValue(change) === null) return "text-muted-foreground";
   return numberValue(change) >= 0
     ? "text-emerald-700 dark:text-emerald-300"
     : "text-rose-700 dark:text-rose-300";
@@ -142,13 +144,16 @@ export default function Home() {
     .map(ticker => assets.find(asset => asset.ticker === ticker))
     .filter(Boolean);
   const gainers = [...assets]
+    .filter(asset => optionalNumberValue(asset.changePercent) !== null)
     .sort((a, b) => numberValue(b.changePercent) - numberValue(a.changePercent))
     .slice(0, 4);
   const losers = [...assets]
+    .filter(asset => optionalNumberValue(asset.changePercent) !== null)
     .sort((a, b) => numberValue(a.changePercent) - numberValue(b.changePercent))
     .slice(0, 4);
   const volumes = [...assets]
-    .sort((a, b) => numberValue(b.dayVolume) - numberValue(a.dayVolume))
+    .filter(asset => optionalNumberValue(asset.volume) !== null)
+    .sort((a, b) => numberValue(b.volume) - numberValue(a.volume))
     .slice(0, 4);
   const watchlist =
     watchlistQuery.data?.map(item => item.asset) ??
@@ -156,7 +161,9 @@ export default function Home() {
   const hasMarketProvider = Boolean(
     providerStatus.data?.brapi ||
       providerStatus.data?.twelveData ||
-      providerStatus.data?.finnhub
+      providerStatus.data?.finnhub ||
+      providerStatus.data?.coinGecko ||
+      providerStatus.data?.eodhd
   );
   const isDemo = dataQualityQuery.data?.isDemo ?? !hasMarketProvider;
   const isCatalogFallback =
@@ -178,12 +185,12 @@ export default function Home() {
 
   const tickerItems = useMemo(() => {
     if (!assets.length) return [];
-    const unique = new Map<string, typeof assets[number]>();
+    const unique = new Map<string, (typeof assets)[number]>();
     indices.forEach(a => a && unique.set(a.ticker, a));
     gainers.forEach(a => unique.set(a.ticker, a));
     losers.forEach(a => unique.set(a.ticker, a));
     assets.forEach(a => unique.set(a.ticker, a));
-    return Array.from(unique.values());
+    return Array.from(unique.values()).filter(asset => asset.price !== null);
   }, [assets, gainers, indices, losers]);
 
   return (
@@ -196,7 +203,7 @@ export default function Home() {
               {tickerItems.length > 0 ? (
                 [...tickerItems, ...tickerItems].map((asset, index) => {
                   const live = realtimeQuotes[asset.ticker];
-                  const price = live?.price ?? asset.lastPrice;
+                  const price = live?.price ?? asset.price;
                   const change = live?.changePercent ?? asset.changePercent;
                   return (
                     <Link
@@ -213,7 +220,7 @@ export default function Home() {
                       <span
                         className={`text-[11px] font-semibold tabular-nums ${changeClass(change)}`}
                       >
-                        {numberValue(change) >= 0 ? "+" : ""}
+                        {optionalNumberValue(change) !== null && numberValue(change) >= 0 ? "+" : ""}
                         {formatPercent(change)}
                       </span>
                     </Link>
@@ -247,6 +254,14 @@ export default function Home() {
               <Link href="/markets">
                 <Button className="rounded-xl px-5 py-6 text-sm font-semibold shadow-sm">
                   Explorar mercados <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/guia">
+                <Button
+                  variant="outline"
+                  className="rounded-xl px-5 py-6 text-sm font-semibold"
+                >
+                  Sou iniciante: começar pelo guia
                 </Button>
               </Link>
               <Link href="/screener">
@@ -326,12 +341,12 @@ export default function Home() {
               <span>
                 <strong>Cobertura de mercado identificada.</strong>{" "}
                 {realAssets > 0
-                  ? `${realAssets} de ${assets.length} ativos usam provedores contratados. ${catalogAssets.map(asset => asset.ticker).join(", ")} permanecem como referência até termos uma fonte compatível.`
-                  : "Os cartões e listas desta página ainda utilizam o catálogo de referência. Não os interprete como cotações atuais."}
+                  ? `${realAssets} de ${assets.length} ativos têm uma fonte ativa. ${catalogAssets.map(asset => asset.ticker).join(", ")} estão sem cobertura e não exibem valores.`
+                  : "Os ativos desta página estão sem cobertura de mercado no momento."}
               </span>
             </div>
             <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-900 dark:text-amber-100">
-              {realAssets > 0 ? "Cobertura parcial" : "Origem: catálogo"}
+              {realAssets > 0 ? "Cobertura parcial" : "Dados indisponíveis"}
             </span>
           </div>
         )}
@@ -387,8 +402,8 @@ export default function Home() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Ibovespa"
-            value={indices[0]?.lastPrice ?? 132450}
-            change={numberValue(indices[0]?.changePercent ?? 0.86)}
+            value={indices[0]?.price}
+            change={optionalNumberValue(indices[0]?.changePercent)}
             currency="BRL"
             note="Fechamento de referência"
             accent="blue"
@@ -405,8 +420,8 @@ export default function Home() {
           />
           <MetricCard
             label="S&P 500"
-            value={indices[1]?.lastPrice ?? 5608.25}
-            change={numberValue(indices[1]?.changePercent ?? 0.42)}
+            value={indices[1]?.price}
+            change={optionalNumberValue(indices[1]?.changePercent)}
             currency="USD"
             note="Mercado internacional"
             footer={
@@ -422,8 +437,8 @@ export default function Home() {
           />
           <MetricCard
             label="Bitcoin"
-            value={indices[3]?.lastPrice ?? 64280.1}
-            change={numberValue(indices[3]?.changePercent ?? -0.34)}
+            value={indices[3]?.price}
+            change={optionalNumberValue(indices[3]?.changePercent)}
             currency="USD"
             note="Cripto · 24 horas"
             accent="orange"
@@ -440,8 +455,8 @@ export default function Home() {
           />
           <MetricCard
             label="Brent"
-            value={indices[4]?.lastPrice ?? 82.46}
-            change={numberValue(indices[4]?.changePercent ?? -0.18)}
+            value={indices[4]?.price}
+            change={optionalNumberValue(indices[4]?.changePercent)}
             currency="USD"
             note="Commodities"
             footer={
@@ -536,8 +551,6 @@ export default function Home() {
   );
 }
 
-import { Sparkline } from "@/components/Sparkline";
-
 function MarketList({
   title,
   icon,
@@ -566,14 +579,7 @@ function MarketList({
           >
             <span className="text-xs font-semibold">{asset.ticker}</span>
             <div className="flex items-center gap-2">
-              {!volume && (
-                <Sparkline
-                  changePercent={asset.changePercent}
-                  seed={asset.ticker}
-                  width={52}
-                  height={18}
-                />
-              )}
+              {!volume && <span className="text-muted-foreground">—</span>}
               <span
                 className={
                   volume
@@ -582,8 +588,8 @@ function MarketList({
                 }
               >
                 {volume
-                  ? formatCompact(asset.dayVolume)
-                  : `${numberValue(asset.changePercent) >= 0 ? "+" : ""}${formatPercent(asset.changePercent)}`}
+                  ? formatCompact(asset.volume)
+                  : `${optionalNumberValue(asset.changePercent) !== null && numberValue(asset.changePercent) >= 0 ? "+" : ""}${formatPercent(asset.changePercent)}`}
               </span>
             </div>
           </Link>

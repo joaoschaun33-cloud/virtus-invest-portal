@@ -337,7 +337,7 @@ export default function Portfolio() {
           <Panel className="mb-6 p-8">
             <EmptyState
               title="Entre para salvar sua carteira"
-              description="O modo demonstração mostra a estrutura da carteira. Faça login para persistir suas operações e alertas com segurança."
+              description="Faça login para cadastrar suas operações e salvar sua carteira e seus alertas com segurança."
               action={<AuthAccessOptions />}
             />
           </Panel>

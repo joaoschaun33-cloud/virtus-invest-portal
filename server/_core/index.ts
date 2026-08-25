@@ -11,7 +11,16 @@ import { registerMarketRealtime } from "../realtime";
 import { startAlertMonitor } from "../alertMonitor";
 import { runAlertMonitorOnce } from "../alertMonitor";
 import { runCvmFinancialIngestion } from "../cvmFinancialIngestion";
+import { runB3CotahistIngestion } from "../b3Cotahist";
 import { matchesJobSecret } from "../jobAuth";
+import { getDb } from "../db";
+import { logger } from "./logger";
+import { randomUUID } from "node:crypto";
+import { getMetrics, recordRequest } from "./metrics";
+import { cleanupExpiredEmailDeliveries } from "../emailDelivery";
+import { withDistributedLock } from "../reliability";
+import { finishJobRun, listRecentJobRuns, startJobRun } from "../jobRuns";
+import { cleanupProductionDemoData } from "../demoDataCleanup";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +45,30 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
   app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    const forwardedRequestId = req.header("x-request-id")?.trim();
+    const requestId =
+      forwardedRequestId && forwardedRequestId.length <= 128
+        ? forwardedRequestId
+        : randomUUID();
+    const startedAt = performance.now();
+    res.setHeader("X-Request-Id", requestId);
+    res.on("finish", () => {
+      logger.info("http.request", {
+        requestId,
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+      recordRequest(
+        req.path,
+        res.statusCode,
+        Math.round(performance.now() - startedAt)
+      );
+    });
+    next();
+  });
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
@@ -66,8 +99,35 @@ async function startServer() {
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json({ status: "ok", service: "virtus" });
   };
+  app.get("/livez", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({ status: "ok", service: "virtus" });
+  });
   app.get("/healthz", healthHandler);
   app.get("/api/health", healthHandler);
+  app.get("/api/metrics", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({ service: "virtus", metrics: getMetrics() });
+  });
+  app.get("/readyz", async (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const databaseConfigured = Boolean(process.env.DATABASE_URL);
+    const databaseAvailable = databaseConfigured
+      ? Boolean(await getDb())
+      : true;
+    const ready = databaseAvailable;
+    res.status(ready ? 200 : 503).json({
+      status: ready ? "ready" : "not_ready",
+      service: "virtus",
+      dependencies: {
+        database: databaseConfigured
+          ? databaseAvailable
+            ? "available"
+            : "unavailable"
+          : "not_configured_demo_mode",
+      },
+    });
+  });
   app.post("/internal/jobs/alerts", async (req, res) => {
     const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
     if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
@@ -78,7 +138,41 @@ async function startServer() {
       const result = await runAlertMonitorOnce();
       res.status(200).json({ status: "ok", ...result });
     } catch (error) {
-      console.error("[Alerts] Scheduled cycle failed", error);
+      logger.error("alerts.scheduled_cycle_failed", error, { job: "alerts" });
+      res.status(500).json({ status: "error" });
+    }
+  });
+  app.post("/internal/jobs/email-deliveries-cleanup", async (req, res) => {
+    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    try {
+      const result = await withDistributedLock(
+        "virtus:jobs:email-deliveries-cleanup",
+        async () => {
+          const run = await startJobRun("email-deliveries-cleanup");
+          try {
+            const removed = await cleanupExpiredEmailDeliveries();
+            await finishJobRun(run, {
+              status: "succeeded",
+              processed: removed,
+            });
+            return { removed };
+          } catch (error) {
+            await finishJobRun(run, { status: "failed", error });
+            throw error;
+          }
+        }
+      );
+      res
+        .status(200)
+        .json({ status: "ok", skipped: result === null, ...(result ?? {}) });
+    } catch (error) {
+      logger.error("email_deliveries.cleanup_failed", error, {
+        job: "email-deliveries-cleanup",
+      });
       res.status(500).json({ status: "error" });
     }
   });
@@ -93,12 +187,103 @@ async function startServer() {
       const limit = Number.isFinite(configuredLimit)
         ? Math.max(1, Math.min(configuredLimit, 100))
         : 25;
-      const result = await runCvmFinancialIngestion({ limit });
-      res.status(200).json({ status: "ok", ...result });
+      const run = await startJobRun("cvm-financials");
+      try {
+        const result = await runCvmFinancialIngestion({ limit });
+        await finishJobRun(run, {
+          status: result.failures.length ? "failed" : "succeeded",
+          processed: result.saved,
+          failed: result.failures.length,
+          details: { scanned: result.scanned, identified: result.identified },
+        });
+        res.status(200).json({ status: "ok", ...result });
+      } catch (error) {
+        await finishJobRun(run, { status: "failed", error });
+        throw error;
+      }
     } catch (error) {
-      console.error("[CVM Ingestion] Scheduled cycle failed", error);
+      logger.error("cvm.scheduled_cycle_failed", error, {
+        job: "cvm-financials",
+      });
       res.status(500).json({ status: "error" });
     }
+  });
+  app.post("/internal/jobs/b3-cotahist", async (req, res) => {
+    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    try {
+      const result = await withDistributedLock(
+        "virtus:jobs:b3-cotahist",
+        async () => {
+          const run = await startJobRun("b3-cotahist");
+          try {
+            const ingestion = await runB3CotahistIngestion();
+            await finishJobRun(run, {
+              status: "succeeded",
+              processed: ingestion.saved,
+              details: ingestion,
+            });
+            return ingestion;
+          } catch (error) {
+            await finishJobRun(run, { status: "failed", error });
+            throw error;
+          }
+        }
+      );
+      res.status(200).json({
+        status: "ok",
+        skipped: result === null,
+        ...(result ?? {}),
+      });
+    } catch (error) {
+      logger.error("b3.cotahist_ingestion_failed", error, {
+        job: "b3-cotahist",
+      });
+      res.status(500).json({ status: "error" });
+    }
+  });
+  app.post("/internal/jobs/demo-data-cleanup", async (req, res) => {
+    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (req.body?.confirm !== "REMOVE_DEMO_DATA") {
+      res.status(400).json({ error: "confirmation_required" });
+      return;
+    }
+    try {
+      const result = await withDistributedLock(
+        "virtus:jobs:demo-data-cleanup",
+        cleanupProductionDemoData
+      );
+      res.status(200).json({
+        status: "ok",
+        skipped: result === null,
+        ...(result ?? {}),
+      });
+    } catch (error) {
+      logger.error("demo_data.cleanup_failed", error, {
+        job: "demo-data-cleanup",
+      });
+      res.status(500).json({ status: "error" });
+    }
+  });
+  app.get("/internal/jobs/runs", async (req, res) => {
+    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const limit = Number(req.query.limit ?? 50);
+    res
+      .status(200)
+      .json({
+        runs: await listRecentJobRuns(Number.isFinite(limit) ? limit : 50),
+      });
   });
   registerStorageProxy(app);
   // tRPC API
@@ -120,12 +305,15 @@ async function startServer() {
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    logger.warn("server.port_fallback", {
+      preferredPort,
+      selectedPort: port,
+    });
   }
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    logger.info("server.started", { port });
   });
 }
 
-startServer().catch(console.error);
+startServer().catch(error => logger.error("server.start_failed", error));

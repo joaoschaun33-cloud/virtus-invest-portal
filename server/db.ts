@@ -498,7 +498,8 @@ const demoCatalogRows: Array<typeof assets.$inferSelect> = catalog.map(
 );
 
 export function normalizeAssetType(type?: string): string | undefined {
-  if (!type || type === "Todos" || type === "ALL" || type === "all") return undefined;
+  if (!type || type === "Todos" || type === "ALL" || type === "all")
+    return undefined;
   const upper = type.toUpperCase().trim();
   switch (upper) {
     case "AÇÃO":
@@ -556,12 +557,14 @@ function parseNumber(value: unknown, fallback = 0) {
 }
 
 export async function ensureCatalogSeed() {
-  if (skipCatalogSeedForTests) return;
+  if (skipCatalogSeedForTests || process.env.NODE_ENV === "production") return;
   if (!seedPromise) {
     seedPromise = (async () => {
       const db = await getDb();
       if (!db) return;
-      const existing = await db.select({ ticker: assets.ticker, id: assets.id }).from(assets);
+      const existing = await db
+        .select({ ticker: assets.ticker, id: assets.id })
+        .from(assets);
       const existingTickers = new Set(existing.map(a => a.ticker));
       const missing = catalog.filter(a => !existingTickers.has(a.ticker));
       if (missing.length > 0) {
@@ -709,12 +712,17 @@ export async function listAssets(input?: {
   await ensureCatalogSeed();
   const db = await getDb();
   const normalizedType = normalizeAssetType(input?.assetType);
-  if (!db) return listDemoCatalogAssets({ search: input?.search, assetType: normalizedType });
+  if (!db)
+    return process.env.NODE_ENV === "production"
+      ? []
+      : listDemoCatalogAssets({
+          search: input?.search,
+          assetType: normalizedType,
+        });
   const filters = [eq(assets.isActive, 1)];
   if (input?.search)
     filters.push(like(assets.ticker, `%${input.search.toUpperCase()}%`));
-  if (normalizedType)
-    filters.push(eq(assets.assetType, normalizedType));
+  if (normalizedType) filters.push(eq(assets.assetType, normalizedType));
   return db
     .select()
     .from(assets)
@@ -726,9 +734,11 @@ export async function getAssetByTicker(ticker: string) {
   await ensureCatalogSeed();
   const db = await getDb();
   if (!db)
-    return listDemoCatalogAssets({ search: ticker }).find(
-      asset => asset.ticker === ticker.toUpperCase()
-    );
+    return process.env.NODE_ENV === "production"
+      ? undefined
+      : listDemoCatalogAssets({ search: ticker }).find(
+          asset => asset.ticker === ticker.toUpperCase()
+        );
   const rows = await db
     .select()
     .from(assets)
@@ -762,11 +772,11 @@ export async function updateAssetQuote(
   assetId: number,
   quote: {
     price: number;
-    changePercent: number;
-    volume: number;
-    open: number;
-    high: number;
-    low: number;
+    changePercent: number | null;
+    volume: number | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
     source: string;
   }
 ) {
@@ -776,28 +786,30 @@ export async function updateAssetQuote(
     .update(assets)
     .set({
       lastPrice: quote.price.toFixed(6),
-      changePercent: quote.changePercent.toFixed(4),
-      dayVolume: quote.volume.toFixed(4),
+      changePercent: quote.changePercent?.toFixed(4) ?? null,
+      dayVolume: quote.volume?.toFixed(4) ?? null,
       source: quote.source,
       updatedAt: new Date(),
     })
     .where(eq(assets.id, assetId));
-  await db
-    .insert(quotes)
-    .values({
-      assetId,
-      interval: "1D",
-      quoteTime: new Date(),
-      open: quote.open.toFixed(6),
-      high: quote.high.toFixed(6),
-      low: quote.low.toFixed(6),
-      close: quote.price.toFixed(6),
-      volume: quote.volume.toFixed(4),
-      source: quote.source,
-    })
-    .onDuplicateKeyUpdate({
-      set: { close: quote.price.toFixed(6), source: quote.source },
-    });
+  if (quote.open !== null && quote.high !== null && quote.low !== null) {
+    await db
+      .insert(quotes)
+      .values({
+        assetId,
+        interval: "1D",
+        quoteTime: new Date(),
+        open: quote.open.toFixed(6),
+        high: quote.high.toFixed(6),
+        low: quote.low.toFixed(6),
+        close: quote.price.toFixed(6),
+        volume: quote.volume?.toFixed(4) ?? null,
+        source: quote.source,
+      })
+      .onDuplicateKeyUpdate({
+        set: { close: quote.price.toFixed(6), source: quote.source },
+      });
+  }
   await evaluatePriceAlerts(assetId, quote.price);
 }
 
@@ -838,6 +850,7 @@ export async function evaluatePriceAlerts(
         currentPrice,
         targetPrice: Number(alert.targetPrice),
         condition: alert.condition,
+        idempotencyKey: `virtus:price-alert:${alert.id}`,
       }).catch(error => console.warn("[Alerts] Email delivery failed:", error));
     }
   }

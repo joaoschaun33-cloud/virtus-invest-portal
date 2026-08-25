@@ -31,8 +31,15 @@ import {
 import { catalogQuoteFromAsset } from "../../shared/marketData";
 
 const asNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return 0;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const asNullableNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 };
 
 const dynamicMetric = (asset: unknown, key: string) =>
@@ -56,6 +63,12 @@ async function listAssetsWithLiveQuotes(input?: {
         : 0;
       if (
         snapshot.source !== "catalog" &&
+        snapshot.price !== null &&
+        snapshot.changePercent !== null &&
+        snapshot.volume !== null &&
+        snapshot.open !== null &&
+        snapshot.dayHigh !== null &&
+        snapshot.dayLow !== null &&
         now - updatedAt >= CATALOG_SYNC_INTERVAL_MS
       ) {
         await updateAssetQuote(asset.id, {
@@ -76,6 +89,7 @@ async function listAssetsWithLiveQuotes(input?: {
 
 function movingAverage(values: number[], period: number) {
   return values.map((_, index) => {
+    if (index + 1 < period) return null;
     const slice = values.slice(Math.max(0, index - period + 1), index + 1);
     return slice.reduce((total, value) => total + value, 0) / slice.length;
   });
@@ -83,6 +97,7 @@ function movingAverage(values: number[], period: number) {
 
 function rsi(values: number[], period = 14) {
   return values.map((_, index) => {
+    if (index < period) return null;
     const start = Math.max(1, index - period + 1);
     let gains = 0;
     let losses = 0;
@@ -153,10 +168,10 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
       high: asNumber(quote.high),
       low: asNumber(quote.low),
       close: asNumber(quote.close),
-      volume: asNumber(quote.volume),
-      sma20: sma20[index] ?? 0,
-      sma200: sma200[index] ?? 0,
-      rsi14: rsi14[index] ?? 50,
+      volume: asNullableNumber(quote.volume),
+      sma20: sma20[index],
+      sma200: sma200[index],
+      rsi14: rsi14[index],
       source: "source" in quote ? quote.source : "catalog",
     })),
     providerStatus,
@@ -194,8 +209,9 @@ export const marketRouter = router({
   dataQuality: publicProcedure.query(async () => {
     const live = await fetchLiveQuote("PETR4", "STOCK");
     return {
-      isDemo: !live,
-      source: live?.source ?? "catalog",
+      isDemo: false,
+      status: live ? ("available" as const) : ("unavailable" as const),
+      source: live?.source ?? null,
       checkedAt: new Date(),
     };
   }),
@@ -277,13 +293,17 @@ export const marketRouter = router({
     )
     .query(async ({ input }) => {
       const stored = await listNews(input);
+      const matchesCategory = (category: string) =>
+        !input?.category || category === input.category;
       if (!input?.assetId) {
         const official = await fetchOfficialNews();
         if (!official.length)
           return stored.filter(
             item =>
-              item.sourceName !== "Apex Brief" && item.sourceName !== "catalog"
-          );
+              item.sourceName !== "Apex Brief" &&
+              item.sourceName !== "catalog" &&
+              matchesCategory(item.category)
+          ).map(item => ({ ...item, relatedTickers: [] as string[] }));
         return official.map((item, index) => ({
           id: -(index + 1),
           assetId: null,
@@ -292,17 +312,20 @@ export const marketRouter = router({
           sourceName: item.sourceName,
           url: item.url,
           category: item.category,
+          relatedTickers: item.relatedTickers,
           publishedAt: item.publishedAt,
           createdAt: item.publishedAt,
-        }));
+        })).filter(item => matchesCategory(item.category));
       }
       const asset = await (async () => {
         const matches = await listAssets();
         return matches.find(item => item.id === input.assetId);
       })();
-      if (!asset) return stored;
+      if (!asset)
+        return stored.map(item => ({ ...item, relatedTickers: [] as string[] }));
       const live = await fetchProviderNews(asset.ticker);
-      if (!live.length) return stored;
+      if (!live.length)
+        return stored.map(item => ({ ...item, relatedTickers: [] as string[] }));
       return live.map((item, index) => ({
         id: -(index + 1),
         assetId: asset.id,
@@ -312,6 +335,7 @@ export const marketRouter = router({
         sourceName: item.source,
         url: item.url,
         category: input.category ?? "Mercado",
+        relatedTickers: item.relatedTicker ? [item.relatedTicker] : [],
         publishedAt: item.publishedAt,
         createdAt: item.publishedAt,
       }));

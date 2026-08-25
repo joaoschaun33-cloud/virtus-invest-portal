@@ -29,6 +29,23 @@ describe("data source governance", () => {
     );
   });
 
+  it("prioritizes CoinGecko for crypto and gates EODHD public display", () => {
+    process.env.COINGECKO_API_KEY = "configured";
+    process.env.COINGECKO_PUBLIC_DISPLAY = "true";
+    process.env.EODHD_API_TOKEN = "configured";
+    delete process.env.EODHD_PUBLIC_DISPLAY;
+    expect(marketSourceOrder("quote", { assetType: "CRYPTO" })[0]).toBe(
+      "coingecko"
+    );
+    expect(marketSourceOrder("quote", { assetType: "STOCK" })).not.toContain(
+      "eodhd"
+    );
+    process.env.EODHD_PUBLIC_DISPLAY = "true";
+    expect(marketSourceOrder("history", { assetType: "STOCK" })).toContain(
+      "eodhd"
+    );
+  });
+
   it("exposes governance without exposing credentials", () => {
     process.env.BRAPI_API_KEY = "super-secret";
     const payload = getDataSourceGovernance();

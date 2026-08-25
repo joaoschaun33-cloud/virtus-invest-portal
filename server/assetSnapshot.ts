@@ -1,5 +1,13 @@
-import { catalogQuoteFromAsset, type MarketDataFreshness, type MarketDataSource } from "../shared/marketData";
-import { fetchFundamentals, fetchLiveQuote, type ProviderFundamentals } from "./marketProviders";
+import {
+  catalogQuoteFromAsset,
+  type MarketDataFreshness,
+  type MarketDataSource,
+} from "../shared/marketData";
+import {
+  fetchFundamentals,
+  fetchLiveQuote,
+  type ProviderFundamentals,
+} from "./marketProviders";
 import { getAssetByTicker } from "./db";
 
 export type AssetSnapshotFundamentals = {
@@ -30,15 +38,15 @@ export type AssetSnapshot = {
   exchange: string;
   currency: string;
   sector: string | null;
-  price: number;
-  lastPrice: string;
-  changePercent: number;
-  changeAmount: number;
-  volume: number;
-  dayVolume: string;
-  open: number;
-  dayHigh: number;
-  dayLow: number;
+  price: number | null;
+  lastPrice: string | null;
+  changePercent: number | null;
+  changeAmount: number | null;
+  volume: number | null;
+  dayVolume: string | null;
+  open: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
   fundamentals: AssetSnapshotFundamentals;
   source: MarketDataSource;
   freshness: MarketDataFreshness;
@@ -50,24 +58,18 @@ export type AssetSnapshot = {
 
 const SNAPSHOT_TTL_MS = 20_000;
 
-const cache = new Map<
-  string,
-  { snapshot: AssetSnapshot; fetchedAt: number }
->();
+const cache = new Map<string, { snapshot: AssetSnapshot; fetchedAt: number }>();
 
 function numberOrNull(value: unknown): number | null {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 }
 
-function numberOrZero(value: unknown): number {
-  return numberOrNull(value) ?? 0;
-}
-
 function formatPriceCompat(value: number, currency = "BRL"): string {
+  const normalizedCurrency = /^[A-Z]{3}$/i.test(currency) ? currency.toUpperCase() : "BRL";
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
-    currency,
+    currency: normalizedCurrency,
     maximumFractionDigits: value < 10 ? 4 : 2,
   }).format(value);
 }
@@ -98,7 +100,11 @@ function buildFundamentals(
   };
 }
 
-function computeChangeAmount(price: number, changePercent: number): number {
+function computeChangeAmount(
+  price: number | null,
+  changePercent: number | null
+): number | null {
+  if (price === null || changePercent === null) return null;
   if (!Number.isFinite(price) || !Number.isFinite(changePercent)) return 0;
   if (changePercent === 0) return 0;
   const previousPrice = price / (1 + changePercent / 100);
@@ -113,11 +119,13 @@ function computeChangeAmount(price: number, changePercent: number): number {
  * 1. Check in-memory cache. If fresh, return cached snapshot.
  * 2. Resolve the asset record (database or demo catalog fallback).
  * 3. Fetch live quote and fundamentals through the provider chain defined in
- *    dataSourcePolicy.ts (cache -> brapi -> twelve-data -> finnhub).
+ *    dataSourcePolicy.ts (cache -> provider order by asset class).
  * 4. If no live quote is available, fall back to the catalog/demo values.
  * 5. Store in cache and return.
  */
-export async function getAssetSnapshot(ticker: string): Promise<AssetSnapshot | null> {
+export async function getAssetSnapshot(
+  ticker: string
+): Promise<AssetSnapshot | null> {
   const normalizedTicker = ticker.trim().toUpperCase();
   const cached = cache.get(normalizedTicker);
   if (cached && Date.now() - cached.fetchedAt < SNAPSHOT_TTL_MS) {
@@ -143,15 +151,19 @@ export async function getAssetSnapshot(ticker: string): Promise<AssetSnapshot | 
     exchange: asset.exchange,
     currency: asset.currency ?? "BRL",
     sector: asset.sector ?? null,
-    price: numberOrZero(quote.price),
-    lastPrice: formatPriceCompat(numberOrZero(quote.price), asset.currency ?? "BRL"),
-    changePercent: numberOrZero(quote.changePercent),
-    changeAmount: computeChangeAmount(numberOrZero(quote.price), numberOrZero(quote.changePercent)),
-    volume: numberOrZero(quote.volume),
-    dayVolume: formatCompactCompat(numberOrZero(quote.volume)),
-    open: numberOrZero(quote.open),
-    dayHigh: numberOrZero(quote.high),
-    dayLow: numberOrZero(quote.low),
+    price: quote.price,
+    lastPrice:
+      quote.price === null
+        ? null
+        : formatPriceCompat(quote.price, asset.currency ?? "BRL"),
+    changePercent: quote.changePercent,
+    changeAmount: computeChangeAmount(quote.price, quote.changePercent),
+    volume: quote.volume,
+    dayVolume:
+      quote.volume === null ? null : formatCompactCompat(quote.volume),
+    open: quote.open,
+    dayHigh: quote.high,
+    dayLow: quote.low,
     fundamentals,
     source: quote.source,
     freshness: quote.freshness,

@@ -4,6 +4,9 @@ import {
   listCvmIngestionTargets,
   saveCvmFinancialStatements,
 } from "./cvmFinancialRepository";
+import { CircuitBreaker, withRetry } from "./reliability";
+
+const cvmCircuit = new CircuitBreaker("cvm.financials", 4, 60_000);
 
 type IngestionDependencies = {
   listTargets: typeof listCvmIngestionTargets;
@@ -27,19 +30,25 @@ export async function runCvmFinancialIngestion(
   const identified = (
     await Promise.all(
       targets.map(async asset => {
-        const issuer = await dependencies.identifyIssuer(
-          asset.ticker,
-          asset.assetType
+        const issuer = await withRetry(
+          () => cvmCircuit.exec(() => dependencies.identifyIssuer(asset.ticker, asset.assetType)),
+          { attempts: 3, baseDelayMs: 300, maxDelayMs: 3_000 }
         );
         return issuer ? { asset, issuer } : null;
       })
     )
   ).filter((item): item is NonNullable<typeof item> => item !== null);
-  const statements = await dependencies.fetchBatch(
-    identified.map(item => ({
-      ticker: item.asset.ticker,
-      cnpj: item.issuer.cnpj,
-    }))
+  const statements = await withRetry(
+    () =>
+      cvmCircuit.exec(() =>
+        dependencies.fetchBatch(
+          identified.map(item => ({
+            ticker: item.asset.ticker,
+            cnpj: item.issuer.cnpj,
+          }))
+        )
+      ),
+    { attempts: 3, baseDelayMs: 500, maxDelayMs: 4_000 }
   );
   let saved = 0;
   const failures: string[] = [];

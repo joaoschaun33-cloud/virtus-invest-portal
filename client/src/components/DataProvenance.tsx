@@ -6,13 +6,17 @@ const freshnessLabels: Record<MarketDataFreshness, string> = {
   delayed: "Com atraso",
   close: "Fechamento",
   demo: "Demonstração",
+  stale: "Desatualizado",
+  unavailable: "Indisponível",
   official: "Oficial",
 };
 const sourceLabels: Record<MarketDataSource, string> = {
   brapi: "brapi",
   "twelve-data": "Twelve Data",
   finnhub: "Finnhub",
-  catalog: "catálogo de referência",
+  coingecko: "CoinGecko",
+  eodhd: "EODHD",
+  catalog: "sem fonte disponível",
   "tesouro-direto": "Tesouro Nacional",
   b3: "B3",
   cvm: "CVM",
