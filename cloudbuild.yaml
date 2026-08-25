@@ -2,7 +2,7 @@ substitutions:
   _REGION: southamerica-east1
   _REPOSITORY: virtus
   _SERVICE: virtus-web
-  _CLOUD_SQL_INSTANCE: ""
+  _CLOUD_SQL_INSTANCE: "portal-virtus:southamerica-east1:virtus-mysql"
   _REALTIME_URL: "wss://virtus-web-ysuazn5yga-rj.a.run.app/api/realtime"
 
 steps:
