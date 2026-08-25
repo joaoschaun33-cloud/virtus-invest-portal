@@ -48,6 +48,21 @@ export function isSourceEligible(
   return context.publicDisplay === false || publicDisplayApproved(source);
 }
 
+export function isStoredSourcePubliclyDisplayable(source: unknown) {
+  const normalized = String(source ?? "").toLowerCase();
+  const providers: MarketProviderId[] = [
+    "brapi",
+    "twelve-data",
+    "finnhub",
+    "coingecko",
+    "eodhd",
+  ];
+  if (providers.includes(normalized as MarketProviderId))
+    return isSourceEligible(normalized as MarketProviderId);
+  const sourceDefinition = DATA_SOURCES[normalized as DataSourceId];
+  return sourceDefinition?.displayPolicy === "allowed";
+}
+
 /**
  * Central source-selection policy. Product routes never choose providers.
  * Ordering expresses business authority and licensing, not token availability.

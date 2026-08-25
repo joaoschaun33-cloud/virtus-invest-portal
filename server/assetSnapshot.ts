@@ -9,6 +9,7 @@ import {
   type ProviderFundamentals,
 } from "./marketProviders";
 import { getAssetByTicker } from "./db";
+import { isStoredSourcePubliclyDisplayable } from "./dataSourcePolicy";
 
 export type AssetSnapshotFundamentals = {
   peRatio: number | null;
@@ -140,7 +141,16 @@ export async function getAssetSnapshot(
     fetchFundamentals(asset.ticker, asset.assetType),
   ]);
 
-  const quote = liveQuote ?? catalogQuoteFromAsset(asset);
+  const storedFallback = isStoredSourcePubliclyDisplayable(asset.source)
+    ? asset
+    : {
+        ...asset,
+        lastPrice: null,
+        changePercent: null,
+        dayVolume: null,
+        source: "catalog",
+      };
+  const quote = liveQuote ?? catalogQuoteFromAsset(storedFallback);
   const fundamentals = buildFundamentals(asset, liveFundamentals);
 
   const snapshot: AssetSnapshot = {

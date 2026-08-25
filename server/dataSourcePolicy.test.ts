@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getDataSourceGovernance, marketSourceOrder } from "./dataSourcePolicy";
+import {
+  getDataSourceGovernance,
+  isStoredSourcePubliclyDisplayable,
+  marketSourceOrder,
+} from "./dataSourcePolicy";
 
 const original = { ...process.env };
 
@@ -27,6 +31,13 @@ describe("data source governance", () => {
     expect(marketSourceOrder("history", { assetType: "FOREX" })[0]).toBe(
       "twelve-data"
     );
+  });
+
+  it("does not redisplay stored values from a provider pending public license", () => {
+    process.env.TWELVE_DATA_API_KEY = "configured";
+    delete process.env.TWELVE_DATA_PUBLIC_DISPLAY;
+    expect(isStoredSourcePubliclyDisplayable("twelve-data")).toBe(false);
+    expect(isStoredSourcePubliclyDisplayable("b3")).toBe(true);
   });
 
   it("prioritizes CoinGecko for crypto and gates EODHD public display", () => {
