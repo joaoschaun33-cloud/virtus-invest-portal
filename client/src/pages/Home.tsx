@@ -282,8 +282,29 @@ export default function Home() {
 
         <GuideContinuation />
 
+        {macroBriefQuery.isLoading && (
+          <Panel
+            className="mt-6 min-h-[680px] overflow-hidden sm:min-h-[240px]"
+            aria-busy="true"
+          >
+            <div className="border-b border-border/60 px-5 py-4">
+              <div className="h-3 w-28 animate-pulse rounded bg-primary/15" />
+              <div className="mt-3 h-5 w-40 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="grid gap-4 p-5 sm:grid-cols-3">
+              {[0, 1, 2].map(item => (
+                <div
+                  key={item}
+                  className="h-32 animate-pulse rounded-xl bg-muted/60"
+                />
+              ))}
+            </div>
+            <span className="sr-only">Carregando cenário econômico</span>
+          </Panel>
+        )}
+
         {macroBriefQuery.data && (
-          <Panel className="mt-6 overflow-hidden">
+          <Panel className="mt-6 min-h-[680px] overflow-hidden sm:min-h-[240px]">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 px-5 py-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -337,6 +358,16 @@ export default function Home() {
                 Tente novamente em instantes.
               </div>
             )}
+          </Panel>
+        )}
+
+        {!macroBriefQuery.isLoading && !macroBriefQuery.data && (
+          <Panel className="mt-6 min-h-[680px] p-5 sm:min-h-[240px]">
+            <h2 className="section-heading">Brasil em contexto</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              O cenário econômico está temporariamente indisponível. Nenhum
+              indicador anterior será apresentado como atual.
+            </p>
           </Panel>
         )}
 
