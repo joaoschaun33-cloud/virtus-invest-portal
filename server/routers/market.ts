@@ -26,6 +26,7 @@ import {
   listDividends,
   listEconomicEvents,
   listNews,
+  updateAssetQuote,
 } from "../db";
 import { catalogQuoteFromAsset } from "../../shared/marketData";
 
