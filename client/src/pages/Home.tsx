@@ -173,6 +173,10 @@ export default function Home() {
   const editorialIsDemo =
     (editorialStatusQuery.data?.newsIsDemo ?? true) &&
     (editorialStatusQuery.data?.calendarIsDemo ?? true);
+  const marketQualityResolved =
+    !assetsQuery.isLoading &&
+    !providerStatus.isLoading &&
+    !dataQualityQuery.isLoading;
   const today = useMemo(
     () =>
       new Intl.DateTimeFormat("pt-BR", {
@@ -227,7 +231,7 @@ export default function Home() {
                   );
                 })
               ) : (
-                <div className="px-4 py-3 text-xs text-muted-foreground">
+                <div className="px-4 py-2.5 text-xs text-muted-foreground">
                   Carregando cotações de mercado...
                 </div>
               )}
@@ -336,7 +340,8 @@ export default function Home() {
           </Panel>
         )}
 
-        {(isDemo || isCatalogFallback || catalogAssets.length > 0) && (
+        {marketQualityResolved &&
+          (isDemo || isCatalogFallback || catalogAssets.length > 0) && (
           <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-5 py-4 text-xs text-amber-800 dark:text-amber-200">
             <div className="flex items-center gap-3">
               <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -351,7 +356,7 @@ export default function Home() {
               {realAssets > 0 ? "Cobertura parcial" : "Dados indisponíveis"}
             </span>
           </div>
-        )}
+          )}
 
         <section className="mt-8" aria-labelledby="painel-do-dia-title">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
