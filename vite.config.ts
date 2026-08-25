@@ -197,7 +197,10 @@ export default defineConfig(({ command }) => ({
             if (id.includes("firebase")) return "vendor-firebase";
             if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
             if (id.includes("lucide-react")) return "vendor-icons";
-            return "vendor";
+            // Let Rollup keep the remaining libraries close to the lazy route
+            // that imports them. A catch-all vendor chunk forced visitors to
+            // preload code used only by secondary authenticated screens.
+            return undefined;
           }
         },
       },
