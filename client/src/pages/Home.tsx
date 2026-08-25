@@ -276,6 +276,8 @@ export default function Home() {
           </div>
         </section>
 
+        <GuideContinuation />
+
         {macroBriefQuery.data && (
           <Panel className="mt-6 overflow-hidden">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/60 px-5 py-4">
@@ -549,6 +551,21 @@ export default function Home() {
       </div>
     </DashboardLayout>
   );
+}
+
+function GuideContinuation() {
+  const state = useMemo(() => {
+    try {
+      const goal = localStorage.getItem("virtus-guide-goal-v1");
+      const seen = JSON.parse(localStorage.getItem("virtus-guide-progress-v1") ?? "[]") as string[];
+      const quizzes = JSON.parse(localStorage.getItem("virtus-guide-quizzes-v1") ?? "[]") as string[];
+      if (!goal && !seen.length) return null;
+      const total = 5;
+      return { completed: quizzes.length, visited: seen.length, total };
+    } catch { return null; }
+  }, []);
+  if (!state || state.completed >= state.total) return null;
+  return <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-primary/[.045] p-5"><div><p className="text-[11px] font-semibold uppercase tracking-[.14em] text-primary">Sua jornada</p><h2 className="mt-1 text-sm font-semibold">Continue o Guia do iniciante</h2><p className="mt-1 text-xs text-muted-foreground">{state.completed} verificações concluídas · {state.visited} módulos visitados</p></div><Link href="/guia"><Button variant="outline" className="rounded-xl">Continuar de onde parei <ArrowRight className="ml-2 h-4 w-4" /></Button></Link></section>;
 }
 
 function MarketList({

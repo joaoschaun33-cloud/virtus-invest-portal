@@ -3,12 +3,21 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { BookOpen, Check, GraduationCap, Info, PieChart, ShieldCheck, Triangle, WalletCards, X, XCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Check, CheckCircle2, GraduationCap, Info, PieChart, ShieldCheck, Target, Triangle, WalletCards, X, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 
 const STORAGE_KEY = "virtus-guide-progress-v1";
+const GOAL_KEY = "virtus-guide-goal-v1";
+const QUIZ_KEY = "virtus-guide-quizzes-v1";
 const blockIds = ["reserva", "triangulo", "ativos", "carteira", "dicionario"];
+type Goal = "reserva" | "planejar" | "investir";
+const goals: Record<Goal, { title: string; description: string; path: string[] }> = {
+  reserva: { title: "Criar minha reserva", description: "Organizar proteção para imprevistos.", path: ["reserva", "triangulo", "dicionario"] },
+  planejar: { title: "Planejar um objetivo", description: "Entender prazo, risco e possíveis composições.", path: ["reserva", "triangulo", "ativos", "carteira"] },
+  investir: { title: "Começar a analisar", description: "Conhecer ativos e praticar uma leitura fundamentalista.", path: ["triangulo", "ativos", "carteira", "dicionario"] },
+};
+const blockLabels: Record<string, string> = { reserva: "Reserva", triangulo: "Risco e liquidez", ativos: "Tipos de ativos", carteira: "Composição", dicionario: "Dicionário" };
 
 const assets = {
   "Renda fixa": [
@@ -56,10 +65,17 @@ export default function Guide() {
     try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[\"reserva\"]")); } catch { return new Set(["reserva"]); }
   });
   const [open, setOpen] = useState<string[]>(["reserva"]);
+  const [goal, setGoal] = useState<Goal | null>(() => (localStorage.getItem(GOAL_KEY) as Goal | null));
+  const [quizzes, setQuizzes] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(QUIZ_KEY) ?? "[]")); } catch { return new Set(); }
+  });
   const [celebrate, setCelebrate] = useState(false);
   const celebrated = useRef(seen.size === blockIds.length);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(seen))); }, [seen]);
+  useEffect(() => { localStorage.setItem(QUIZ_KEY, JSON.stringify(Array.from(quizzes))); }, [quizzes]);
+  function chooseGoal(value: Goal) { setGoal(value); localStorage.setItem(GOAL_KEY, value); setOpen([goals[value].path[0]]); }
+  function completeQuiz(id: string) { setQuizzes(previous => new Set(previous).add(id)); }
   function changeOpen(values: string[]) {
     setOpen(values);
     setSeen(previous => {
@@ -80,24 +96,50 @@ export default function Guide() {
         </div>
       </header>
 
+      <GoalChooser value={goal} onChange={chooseGoal} />
+      {goal && <LearningPath goal={goal} seen={seen} />}
+
       <div className="mt-6 flex items-center gap-3" aria-label={`${seen.size} de 5 blocos visitados`}>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${seen.size * 20}%` }} /></div>
         <span className="text-xs font-medium text-muted-foreground">{seen.size} de 5 blocos</span>
       </div>
 
       <Accordion type="multiple" value={open} onValueChange={changeOpen} className="mt-5 space-y-4">
-        <GuideBlock value="reserva" icon={<ShieldCheck />} title="Reserva de emergência" subtitle="Estime sua proteção e entenda os critérios para guardar esse dinheiro."><EmergencyFund /></GuideBlock>
-        <GuideBlock value="triangulo" icon={<Triangle />} title="Risco, retorno e liquidez" subtitle="Entenda os três critérios que se combinam em todo investimento."><InvestmentTriangle /></GuideBlock>
-        <GuideBlock value="ativos" icon={<WalletCards />} title="Tipos de ativos" subtitle="Conheça renda fixa e renda variável, com vantagens e riscos."><AssetExplorer /></GuideBlock>
-        <GuideBlock value="carteira" icon={<PieChart />} title="Exemplos de composição" subtitle="Visualizações educacionais para diferentes tolerâncias a oscilações."><Allocation /></GuideBlock>
-        <GuideBlock value="dicionario" icon={<BookOpen />} title="Dicionário do investidor" subtitle="Consulte rapidamente os termos encontrados no portal."><Dictionary /></GuideBlock>
+        <GuideBlock value="reserva" icon={<ShieldCheck />} title="Reserva de emergência" subtitle="Estime sua proteção e entenda os critérios para guardar esse dinheiro."><EmergencyFund /><LearningCheck id="reserva" completed={quizzes.has("reserva")} question="Qual critério deve ter prioridade numa reserva de emergência?" options={["Maior retorno possível", "Facilidade de resgate e baixo risco", "Oscilação elevada"]} correct={1} onComplete={completeQuiz} /></GuideBlock>
+        <GuideBlock value="triangulo" icon={<Triangle />} title="Risco, retorno e liquidez" subtitle="Entenda os três critérios que se combinam em todo investimento."><InvestmentTriangle /><LearningCheck id="triangulo" completed={quizzes.has("triangulo")} question="O que normalmente acontece ao buscar maior retorno?" options={["Todo risco desaparece", "A liquidez sempre aumenta", "Algum risco adicional costuma ser assumido"]} correct={2} onComplete={completeQuiz} /></GuideBlock>
+        <GuideBlock value="ativos" icon={<WalletCards />} title="Tipos de ativos" subtitle="Conheça renda fixa e renda variável, com vantagens e riscos."><AssetExplorer /><LearningCheck id="ativos" completed={quizzes.has("ativos")} question="Qual afirmação é correta?" options={["Renda fixa nunca oscila", "Renda variável pode gerar perdas", "Todo CDB possui liquidez diária"]} correct={1} onComplete={completeQuiz} /></GuideBlock>
+        <GuideBlock value="carteira" icon={<PieChart />} title="Exemplos de composição" subtitle="Visualizações educacionais para diferentes tolerâncias a oscilações."><Allocation /><LearningCheck id="carteira" completed={quizzes.has("carteira")} question="As composições apresentadas no guia são:" options={["Recomendações personalizadas", "Garantias de rentabilidade", "Exemplos educacionais"]} correct={2} onComplete={completeQuiz} /></GuideBlock>
+        <GuideBlock value="dicionario" icon={<BookOpen />} title="Dicionário do investidor" subtitle="Consulte rapidamente os termos encontrados no portal."><Dictionary /><LearningCheck id="dicionario" completed={quizzes.has("dicionario")} question="Liquidez descreve principalmente:" options={["O prazo e a facilidade de converter um ativo em dinheiro", "O lucro futuro garantido", "A ausência de impostos"]} correct={0} onComplete={completeQuiz} /></GuideBlock>
       </Accordion>
+
+      <NextStep goal={goal} seen={seen} quizzes={quizzes} onOpen={id => setOpen(current => current.includes(id) ? current : [...current, id])} />
 
       <aside className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[.06] p-5 text-sm leading-6 text-muted-foreground"><strong className="text-foreground">Conteúdo educacional.</strong> Os exemplos não consideram sua situação financeira, seus objetivos ou sua tolerância a risco e não constituem recomendação de investimento. Regras, impostos, garantias e condições podem mudar.</aside>
       <div className="mt-5 flex justify-end"><Link href="/analise"><Button>Praticar na análise fundamentalista</Button></Link></div>
     </div>
     {celebrate && <div role="status" className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border bg-card p-4 shadow-2xl"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"><GraduationCap /></span><div className="flex-1"><p className="font-semibold">Você visitou todo o guia</p><p className="text-xs text-muted-foreground">Um ótimo começo. Volte aos blocos quando precisar.</p></div><button onClick={() => setCelebrate(false)} aria-label="Fechar aviso" className="rounded-full p-2 hover:bg-accent"><X className="h-4 w-4" /></button></div>}
   </DashboardLayout>;
+}
+
+function GoalChooser({ value, onChange }: { value: Goal | null; onChange: (goal: Goal) => void }) {
+  return <section className="mt-6 rounded-2xl border bg-card p-5" aria-labelledby="goal-title"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><Target className="h-4 w-4" /></span><div><h2 id="goal-title" className="font-semibold">O que você quer fazer primeiro?</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Sua escolha apenas organiza a ordem sugerida. Todo o conteúdo continua disponível.</p></div></div><div className="mt-4 grid gap-3 md:grid-cols-3">{(Object.entries(goals) as [Goal, typeof goals[Goal]][]).map(([key, item]) => <button key={key} type="button" aria-pressed={value === key} onClick={() => onChange(key)} className={`rounded-xl border p-4 text-left transition ${value === key ? "border-primary bg-primary/[.06] ring-1 ring-primary" : "hover:border-primary/40"}`}><span className="flex items-center justify-between font-semibold">{item.title}{value === key && <CheckCircle2 className="h-4 w-4 text-primary" />}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span></button>)}</div></section>;
+}
+
+function LearningPath({ goal, seen }: { goal: Goal; seen: Set<string> }) {
+  return <section className="mt-4 rounded-2xl bg-muted/35 p-4" aria-label="Sua trilha sugerida"><p className="text-xs font-semibold uppercase tracking-[.14em] text-primary">Sua trilha sugerida</p><div className="mt-3 flex flex-wrap items-center gap-2">{goals[goal].path.map((id, index) => <span key={id} className="flex items-center gap-2"><a href={`#${id}`} className={`rounded-full border px-3 py-1.5 text-xs font-medium ${seen.has(id) ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-card"}`}>{seen.has(id) && <Check className="mr-1 inline h-3 w-3" />}{blockLabels[id]}</a>{index < goals[goal].path.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}</span>)}</div></section>;
+}
+
+function LearningCheck({ id, completed, question, options, correct, onComplete }: { id: string; completed: boolean; question: string; options: string[]; correct: number; onComplete: (id: string) => void }) {
+  const [selected, setSelected] = useState<number | null>(completed ? correct : null);
+  const answered = selected !== null; const right = selected === correct;
+  return <section className="mt-7 rounded-2xl border border-primary/15 bg-primary/[.035] p-5"><div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[.14em] text-primary">Verificação de aprendizado</p><h3 className="mt-1 text-sm font-semibold">{question}</h3></div>{completed && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}</div><div className="mt-4 grid gap-2">{options.map((option, index) => <button key={option} type="button" disabled={completed} onClick={() => { setSelected(index); if (index === correct) onComplete(id); }} className={`rounded-xl border px-4 py-3 text-left text-xs transition ${answered && index === correct ? "border-emerald-500/40 bg-emerald-500/10" : answered && index === selected ? "border-rose-500/40 bg-rose-500/10" : "bg-card hover:border-primary/40"}`}>{option}</button>)}</div>{answered && <p role="status" className={`mt-3 text-xs ${right ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>{right ? "Correto. Este módulo foi concluído." : "Ainda não. Revise o conteúdo e tente outra opção."}</p>}</section>;
+}
+
+function NextStep({ goal, seen, quizzes, onOpen }: { goal: Goal | null; seen: Set<string>; quizzes: Set<string>; onOpen: (id: string) => void }) {
+  const path = goal ? goals[goal].path : blockIds;
+  const next = path.find(id => !seen.has(id) || !quizzes.has(id));
+  if (next) return <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-primary/[.05] p-5"><div><p className="text-xs font-semibold text-primary">Continue de onde parou</p><h2 className="mt-1 font-semibold">Próximo passo: {blockLabels[next]}</h2><p className="mt-1 text-xs text-muted-foreground">Abra o módulo e responda à verificação de aprendizado.</p></div><a href={`#${next}`} onClick={() => onOpen(next)}><Button>Continuar <ArrowRight className="ml-2 h-4 w-4" /></Button></a></section>;
+  return <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[.06] p-5"><div><p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Trilha concluída</p><h2 className="mt-1 font-semibold">Agora pratique com um ativo real</h2><p className="mt-1 text-xs text-muted-foreground">Os campos da análise são editáveis e os resultados continuam educacionais.</p></div><Link href="/analise"><Button>Ir para análise <ArrowRight className="ml-2 h-4 w-4" /></Button></Link></section>;
 }
 
 function GuideBlock({ value, icon, title, subtitle, children }: { value: string; icon: React.ReactElement; title: string; subtitle: string; children: React.ReactNode }) {
