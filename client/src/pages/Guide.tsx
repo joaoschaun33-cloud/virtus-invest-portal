@@ -6,6 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { ArrowRight, BookOpen, Check, CheckCircle2, GraduationCap, Info, PieChart, ShieldCheck, Target, Triangle, WalletCards, X, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
+import { trackProductEvent } from "@/lib/analytics";
 
 const STORAGE_KEY = "virtus-guide-progress-v1";
 const GOAL_KEY = "virtus-guide-goal-v1";
@@ -74,12 +75,12 @@ export default function Guide() {
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(seen))); }, [seen]);
   useEffect(() => { localStorage.setItem(QUIZ_KEY, JSON.stringify(Array.from(quizzes))); }, [quizzes]);
-  function chooseGoal(value: Goal) { setGoal(value); localStorage.setItem(GOAL_KEY, value); setOpen([goals[value].path[0]]); }
-  function completeQuiz(id: string) { setQuizzes(previous => new Set(previous).add(id)); }
+  function chooseGoal(value: Goal) { setGoal(value); localStorage.setItem(GOAL_KEY, value); setOpen([goals[value].path[0]]); trackProductEvent("guide_goal_selected", { goal: value }); }
+  function completeQuiz(id: string) { setQuizzes(previous => { const next = new Set(previous).add(id); trackProductEvent("guide_quiz_completed", { module: id, completed: next.size }); if (next.size === blockIds.length) trackProductEvent("guide_completed", { modules: next.size }); return next; }); }
   function changeOpen(values: string[]) {
     setOpen(values);
     setSeen(previous => {
-      const next = new Set(previous); values.forEach(value => next.add(value));
+      const next = new Set(previous); values.forEach(value => { if (!next.has(value)) trackProductEvent("guide_module_opened", { module: value }); next.add(value); });
       if (next.size === blockIds.length && !celebrated.current) { celebrated.current = true; setCelebrate(true); }
       return next;
     });

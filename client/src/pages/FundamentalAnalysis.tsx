@@ -9,6 +9,7 @@ import { AlertTriangle, Check, CircleHelp, Minus, Search, ShieldCheck, TrendingU
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import type { MarketDataSource } from "../../../shared/marketData";
+import { trackProductEvent } from "@/lib/analytics";
 
 const fieldLabels = {
   price: "Preço atual (R$)", eps: "LPA (R$)", pe: "P/L", bvps: "VPA (R$)",
@@ -34,6 +35,7 @@ export default function FundamentalAnalysis() {
 
   useEffect(() => {
     if (!snapshot?.asset) return;
+    trackProductEvent("analysis_loaded", { ticker: snapshot.asset.ticker, source: snapshot.fundamentalsMeta.source });
     const price = number(snapshot.quote.price);
     const pe = number(snapshot.asset.peRatio);
     const pb = number(snapshot.asset.pbRatio);
@@ -53,9 +55,14 @@ export default function FundamentalAnalysis() {
     setFields(next);
   }, [advancedAsset, snapshot]);
 
+  useEffect(() => {
+    if (query.isError && submitted)
+      trackProductEvent("analysis_failed", { ticker: submitted });
+  }, [query.isError, submitted]);
+
   function search(event: FormEvent) {
     event.preventDefault(); const normalized = ticker.trim().toUpperCase(); if (!normalized) return;
-    localStorage.setItem("virtus-analysis-ticker", normalized); setTicker(normalized); setFields(emptyFields); setProfitTrend("unknown"); setSubmitted(normalized);
+    localStorage.setItem("virtus-analysis-ticker", normalized); trackProductEvent("analysis_search", { ticker: normalized }); setTicker(normalized); setFields(emptyFields); setProfitTrend("unknown"); setSubmitted(normalized);
   }
   const values = useMemo(() => Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, fieldNumber(value)])) as Record<Field, number | null>, [fields]);
   const analysis = values.price && values.price > 0 ? calculateValuation({

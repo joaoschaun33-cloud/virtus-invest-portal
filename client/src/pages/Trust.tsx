@@ -42,6 +42,9 @@ export default function Trust() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const dataSources = trpc.market.dataSources.useQuery();
   const quality = trpc.market.dataQuality.useQuery();
+  const coverage = trpc.market.coverageSummary.useQuery(undefined, {
+    staleTime: 60_000,
+  });
   const preferences = trpc.portfolio.preferences.useQuery(undefined, {
     enabled: Boolean(user),
   });
@@ -120,6 +123,41 @@ export default function Trust() {
             note="Exporte seus dados quando quiser"
           />
         </div>
+        <Panel className="mb-6 overflow-hidden">
+          <div className="border-b border-border/60 px-5 py-4">
+            <h2 className="section-heading">Cobertura observada agora</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Retrato dos ativos consultáveis no catálogo; cobertura não
+              significa tempo real nem disponibilidade uniforme.
+            </p>
+          </div>
+          <div className="grid divide-y divide-border/60 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            <CoverageMetric
+              label="Cobertura válida"
+              value={coverage.isLoading ? "…" : `${coverage.data?.coveragePercent ?? 0}%`}
+            />
+            <CoverageMetric
+              label="Com fonte ativa"
+              value={coverage.isLoading ? "…" : String(coverage.data?.available ?? 0)}
+            />
+            <CoverageMetric
+              label="Indisponíveis"
+              value={coverage.isLoading ? "…" : String(coverage.data?.unavailable ?? 0)}
+            />
+            <CoverageMetric
+              label="Demonstração"
+              value={coverage.isLoading ? "…" : String(coverage.data?.demonstration ?? 0)}
+            />
+          </div>
+          {coverage.data && (
+            <div className="border-t border-border/60 bg-muted/20 px-5 py-3 text-[11px] text-muted-foreground">
+              Fontes observadas: {Object.entries(coverage.data.bySource)
+                .map(([source, count]) => `${source}: ${count}`)
+                .join(" · ")} · verificado em{" "}
+              {coverage.data.checkedAt.toLocaleString("pt-BR")}
+            </div>
+          )}
+        </Panel>
         <div className="grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
           <Panel className="overflow-hidden">
             <div className="border-b border-border/60 px-5 py-4">
@@ -379,6 +417,17 @@ function TrustMetric({
       <p className="mt-4 text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold tracking-tight">{value}</p>
       <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>
+    </div>
+  );
+}
+
+function CoverageMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
+        {value}
+      </p>
     </div>
   );
 }

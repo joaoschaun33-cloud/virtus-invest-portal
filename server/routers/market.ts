@@ -215,6 +215,38 @@ export const marketRouter = router({
       checkedAt: new Date(),
     };
   }),
+  coverageSummary: publicProcedure.query(async () => {
+    const snapshots = await listAssetsWithLiveQuotes();
+    const bySource = snapshots.reduce<Record<string, number>>((summary, item) => {
+      summary[item.source] = (summary[item.source] ?? 0) + 1;
+      return summary;
+    }, {});
+    const available = snapshots.filter(
+      item => item.price !== null && item.source !== "catalog"
+    ).length;
+    const unavailable = snapshots.filter(item => item.price === null).length;
+    const demonstration = snapshots.filter(item => item.isDemo).length;
+    const stale = snapshots.filter(item => item.freshness === "stale").length;
+    const timestamps = snapshots
+      .map(item => new Date(item.fetchedAt).valueOf())
+      .filter(timestamp =>
+        Number.isFinite(timestamp) && timestamp > Date.UTC(2000, 0, 1)
+      );
+    return {
+      total: snapshots.length,
+      available,
+      unavailable,
+      demonstration,
+      stale,
+      coveragePercent: snapshots.length
+        ? Math.round((available / snapshots.length) * 100)
+        : 0,
+      bySource,
+      oldestAsOf: timestamps.length ? new Date(Math.min(...timestamps)) : null,
+      newestAsOf: timestamps.length ? new Date(Math.max(...timestamps)) : null,
+      checkedAt: new Date(),
+    };
+  }),
   editorialStatus: publicProcedure.query(async () => {
     const [providerNews, officialNews, calendar] = await Promise.all([
       fetchProviderNews("PETR4"),
