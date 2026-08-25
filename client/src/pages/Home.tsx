@@ -140,9 +140,46 @@ export default function Home() {
   const { quotes: realtimeQuotes, connected } =
     useMarketRealtime(tickerDefaults);
   const assets = assetsQuery.data ?? [];
+  const indexByTicker = new Map(
+    tickerDefaults.map(ticker => [
+      ticker,
+      assets.find(asset => asset.ticker === ticker),
+    ])
+  );
   const indices = tickerDefaults
-    .map(ticker => assets.find(asset => asset.ticker === ticker))
-    .filter(Boolean);
+    .map(ticker => indexByTicker.get(ticker))
+    .filter((asset): asset is (typeof assets)[number] => Boolean(asset));
+  const marketMetrics = [
+    {
+      ticker: "IBOV",
+      label: "Ibovespa",
+      currency: "BRL",
+      note: "Fechamento de referência",
+      accent: "blue" as const,
+    },
+    {
+      ticker: "SPX",
+      label: "S&P 500",
+      currency: "USD",
+      note: "Mercado internacional",
+    },
+    {
+      ticker: "BTC/USD",
+      label: "Bitcoin",
+      currency: "USD",
+      note: "Cripto · 24 horas",
+      accent: "orange" as const,
+    },
+    {
+      ticker: "BZ=F",
+      label: "Brent",
+      currency: "USD",
+      note: "Commodities",
+    },
+  ].flatMap(metric => {
+    const asset = indexByTicker.get(metric.ticker);
+    return asset && asset.price !== null ? [{ ...metric, asset }] : [];
+  });
   const gainers = [...assets]
     .filter(asset => optionalNumberValue(asset.changePercent) !== null)
     .sort((a, b) => numberValue(b.changePercent) - numberValue(a.changePercent))
@@ -437,77 +474,26 @@ export default function Home() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="Ibovespa"
-            value={indices[0]?.price}
-            change={optionalNumberValue(indices[0]?.changePercent)}
-            currency="BRL"
-            note="Fechamento de referência"
-            accent="blue"
-            footer={
-              indices[0] ? (
+        <div className="mt-8 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
+          {marketMetrics.map(metric => (
+            <MetricCard
+              key={metric.ticker}
+              label={metric.label}
+              value={metric.asset.price}
+              change={optionalNumberValue(metric.asset.changePercent)}
+              currency={metric.currency}
+              note={metric.note}
+              accent={metric.accent}
+              footer={
                 <DataProvenance
-                  source={indices[0].source}
-                  asOf={indices[0].fetchedAt}
-                  freshness={indices[0].freshness}
+                  source={metric.asset.source}
+                  asOf={metric.asset.fetchedAt}
+                  freshness={metric.asset.freshness}
                   compact
                 />
-              ) : null
-            }
-          />
-          <MetricCard
-            label="S&P 500"
-            value={indices[1]?.price}
-            change={optionalNumberValue(indices[1]?.changePercent)}
-            currency="USD"
-            note="Mercado internacional"
-            footer={
-              indices[1] ? (
-                <DataProvenance
-                  source={indices[1].source}
-                  asOf={indices[1].fetchedAt}
-                  freshness={indices[1].freshness}
-                  compact
-                />
-              ) : null
-            }
-          />
-          <MetricCard
-            label="Bitcoin"
-            value={indices[3]?.price}
-            change={optionalNumberValue(indices[3]?.changePercent)}
-            currency="USD"
-            note="Cripto · 24 horas"
-            accent="orange"
-            footer={
-              indices[3] ? (
-                <DataProvenance
-                  source={indices[3].source}
-                  asOf={indices[3].fetchedAt}
-                  freshness={indices[3].freshness}
-                  compact
-                />
-              ) : null
-            }
-          />
-          <MetricCard
-            label="Brent"
-            value={indices[4]?.price}
-            change={optionalNumberValue(indices[4]?.changePercent)}
-            currency="USD"
-            note="Commodities"
-            footer={
-              indices[4] ? (
-                <DataProvenance
-                  source={indices[4].source}
-                  asOf={indices[4].fetchedAt}
-                  freshness={indices[4].freshness}
-                  compact
-                />
-              ) : null
-            }
-          />
+              }
+            />
+          ))}
         </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)]">
@@ -632,7 +618,11 @@ function MarketList({
           >
             <span className="text-xs font-semibold">{asset.ticker}</span>
             <div className="flex items-center gap-2">
-              {!volume && <span className="text-muted-foreground">—</span>}
+              {!volume && (
+                <span className="text-[11px] font-medium tabular-nums text-foreground">
+                  {formatPrice(asset.price, asset.currency)}
+                </span>
+              )}
               <span
                 className={
                   volume
