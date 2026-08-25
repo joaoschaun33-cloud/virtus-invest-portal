@@ -18,7 +18,7 @@ import { fetchB3IssuerIdentity } from "../b3ReferenceData";
 import { fetchCvmFinancialStatements } from "../cvmFinancialData";
 import { deriveFinancialMetrics } from "../financialMetrics";
 import { getStoredCvmFinancialStatements } from "../cvmFinancialRepository";
-import { getAssetSnapshot, type AssetSnapshot } from "../assetSnapshot";
+import { getAssetSnapshot, getStoredAssetSnapshot, type AssetSnapshot } from "../assetSnapshot";
 import {
   getAssetByTicker,
   getQuotes,
@@ -26,7 +26,6 @@ import {
   listDividends,
   listEconomicEvents,
   listNews,
-  updateAssetQuote,
 } from "../db";
 import { catalogQuoteFromAsset } from "../../shared/marketData";
 
@@ -46,45 +45,16 @@ const dynamicMetric = (asset: unknown, key: string) =>
   asNumber((asset as Record<string, unknown>)[key]);
 const quoteRefreshes = new Map<string, number>();
 const MIN_REFRESH_INTERVAL_MS = 12_000;
-const CATALOG_SYNC_INTERVAL_MS = 30 * 60_000;
 
 async function listAssetsWithLiveQuotes(input?: {
   search?: string;
   assetType?: string;
 }): Promise<AssetSnapshot[]> {
   const baseAssets = await listAssets(input);
-  const now = Date.now();
-  const snapshots = await Promise.all(
-    baseAssets.map(async asset => {
-      const snapshot = await getAssetSnapshot(asset.ticker);
-      if (!snapshot) return null;
-      const updatedAt = asset.updatedAt
-        ? new Date(asset.updatedAt).valueOf()
-        : 0;
-      if (
-        snapshot.source !== "catalog" &&
-        snapshot.price !== null &&
-        snapshot.changePercent !== null &&
-        snapshot.volume !== null &&
-        snapshot.open !== null &&
-        snapshot.dayHigh !== null &&
-        snapshot.dayLow !== null &&
-        now - updatedAt >= CATALOG_SYNC_INTERVAL_MS
-      ) {
-        await updateAssetQuote(asset.id, {
-          price: snapshot.price,
-          changePercent: snapshot.changePercent,
-          volume: snapshot.volume,
-          open: snapshot.open,
-          high: snapshot.dayHigh,
-          low: snapshot.dayLow,
-          source: snapshot.source,
-        });
-      }
-      return snapshot;
-    })
-  );
-  return snapshots.filter((s): s is AssetSnapshot => Boolean(s));
+  // Catalog screens use the official persisted close. Live provider calls are
+  // reserved for an explicit asset detail request, avoiding a quota burst that
+  // grows linearly with the size of the universe.
+  return baseAssets.map(getStoredAssetSnapshot);
 }
 
 function movingAverage(values: number[], period: number) {

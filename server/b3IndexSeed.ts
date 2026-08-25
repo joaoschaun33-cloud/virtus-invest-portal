@@ -2,19 +2,30 @@ import { eq, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import { assets } from "../drizzle/schema";
 import {
-  getAllB3IndexConstituents,
-  IndexConstituent,
-} from "./b3IndexComposition";
+  fetchCurrentB3Universe,
+  type B3OfficialConstituent,
+} from "./b3OfficialPortfolio";
 
 export type SeedResult = {
   totalConstituents: number;
   inserted: number;
   updated: number;
   totalInDatabase: number;
+  referenceDate: string;
+  indexes: Record<string, number>;
 };
 
-export async function runB3IndexSeed(): Promise<SeedResult> {
-  const constituents = getAllB3IndexConstituents();
+export async function runB3IndexSeed(input?: {
+  constituents?: B3OfficialConstituent[];
+  referenceDate?: string;
+}): Promise<SeedResult> {
+  const official = input?.constituents ? null : await fetchCurrentB3Universe();
+  const constituents = input?.constituents ?? official!.constituents;
+  const referenceDate = input?.referenceDate ?? official!.referenceDate;
+  const indexes = (official?.portfolios ?? []).reduce<Record<string, number>>(
+    (result, item) => ({ ...result, [item.index]: item.constituents.length }),
+    {}
+  );
   const db = await getDb();
 
   if (!db) {
@@ -23,6 +34,8 @@ export async function runB3IndexSeed(): Promise<SeedResult> {
       inserted: 0,
       updated: 0,
       totalInDatabase: 0,
+      referenceDate,
+      indexes,
     };
   }
 
@@ -74,5 +87,7 @@ export async function runB3IndexSeed(): Promise<SeedResult> {
     inserted,
     updated,
     totalInDatabase,
+    referenceDate,
+    indexes,
   };
 }

@@ -12,6 +12,7 @@ import { startAlertMonitor } from "../alertMonitor";
 import { runAlertMonitorOnce } from "../alertMonitor";
 import { runCvmFinancialIngestion } from "../cvmFinancialIngestion";
 import { runB3CotahistIngestion } from "../b3Cotahist";
+import { runB3IndexSeed } from "../b3IndexSeed";
 import { matchesJobSecret } from "../jobAuth";
 import { getDb } from "../db";
 import { logger } from "./logger";
@@ -264,6 +265,34 @@ async function startServer() {
       logger.error("b3.cotahist_ingestion_failed", error, {
         job: "b3-cotahist",
       });
+      res.status(500).json({ status: "error" });
+    }
+  });
+  app.post("/internal/jobs/b3-universe", async (req, res) => {
+    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    try {
+      const result = await withDistributedLock("virtus:jobs:b3-universe", async () => {
+        const run = await startJobRun("b3-universe");
+        try {
+          const synchronization = await runB3IndexSeed();
+          await finishJobRun(run, {
+            status: "succeeded",
+            processed: synchronization.totalConstituents,
+            details: synchronization,
+          });
+          return synchronization;
+        } catch (error) {
+          await finishJobRun(run, { status: "failed", error });
+          throw error;
+        }
+      });
+      res.status(200).json({ status: "ok", skipped: result === null, ...(result ?? {}) });
+    } catch (error) {
+      logger.error("b3.universe_synchronization_failed", error, { job: "b3-universe" });
       res.status(500).json({ status: "error" });
     }
   });

@@ -113,6 +113,40 @@ function computeChangeAmount(
   return price - previousPrice;
 }
 
+export function getStoredAssetSnapshot(
+  asset: NonNullable<Awaited<ReturnType<typeof getAssetByTicker>>>
+): AssetSnapshot {
+  const storedFallback = isStoredSourcePubliclyDisplayable(asset.source)
+    ? asset
+    : { ...asset, lastPrice: null, changePercent: null, dayVolume: null, source: "catalog" };
+  const quote = catalogQuoteFromAsset(storedFallback);
+  return {
+    id: asset.id,
+    ticker: asset.ticker,
+    name: asset.name,
+    assetType: asset.assetType,
+    exchange: asset.exchange,
+    currency: asset.currency ?? "BRL",
+    sector: asset.sector ?? null,
+    price: quote.price,
+    lastPrice: quote.price === null ? null : formatPriceCompat(quote.price, asset.currency ?? "BRL"),
+    changePercent: quote.changePercent,
+    changeAmount: computeChangeAmount(quote.price, quote.changePercent),
+    volume: quote.volume,
+    dayVolume: quote.volume === null ? null : formatCompactCompat(quote.volume),
+    open: quote.open,
+    dayHigh: quote.high,
+    dayLow: quote.low,
+    fundamentals: buildFundamentals(asset, null),
+    source: quote.source,
+    freshness: quote.freshness,
+    fetchedAt: quote.asOf,
+    updatedAt: parseFetchedAt(quote.asOf),
+    ttlMs: SNAPSHOT_TTL_MS,
+    isDemo: quote.isDemo,
+  };
+}
+
 /**
  * Returns a canonical snapshot for the requested ticker.
  *
@@ -141,16 +175,20 @@ export async function getAssetSnapshot(
     fetchFundamentals(asset.ticker, asset.assetType),
   ]);
 
-  const storedFallback = isStoredSourcePubliclyDisplayable(asset.source)
-    ? asset
-    : {
-        ...asset,
-        lastPrice: null,
-        changePercent: null,
-        dayVolume: null,
-        source: "catalog",
-      };
-  const quote = liveQuote ?? catalogQuoteFromAsset(storedFallback);
+  const storedSnapshot = getStoredAssetSnapshot(asset);
+  const quote = liveQuote ?? {
+    ticker: storedSnapshot.ticker,
+    price: storedSnapshot.price,
+    changePercent: storedSnapshot.changePercent,
+    volume: storedSnapshot.volume,
+    open: storedSnapshot.open,
+    high: storedSnapshot.dayHigh,
+    low: storedSnapshot.dayLow,
+    source: storedSnapshot.source,
+    freshness: storedSnapshot.freshness,
+    asOf: storedSnapshot.fetchedAt,
+    isDemo: storedSnapshot.isDemo,
+  };
   const fundamentals = buildFundamentals(asset, liveFundamentals);
 
   const snapshot: AssetSnapshot = {
