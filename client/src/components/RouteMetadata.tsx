@@ -40,6 +40,11 @@ const metadata: Record<
     description:
       "Aprenda os conceitos essenciais de investimentos e conheça as ferramentas do Virtus no seu ritmo.",
   },
+  "/analise": {
+    title: "Análise fundamentalista",
+    description:
+      "Aplique métodos clássicos de análise fundamentalista a dados públicos, com finalidade exclusivamente educacional.",
+  },
   "/portfolio": {
     title: "Carteira",
     description: "Organize e acompanhe sua carteira manual no Virtus.",

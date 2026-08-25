@@ -25,6 +25,7 @@ import {
   Activity,
   Bell,
   BookOpen,
+  ChartNoAxesCombined,
   Calculator,
   GitCompareArrows,
   LayoutDashboard,
@@ -46,6 +47,7 @@ import { Input } from "./ui/input";
 const menuItems = [
   { icon: LayoutDashboard, label: "Visão geral", path: "/" },
   { icon: BookOpen, label: "Guia do iniciante", path: "/guia" },
+  { icon: ChartNoAxesCombined, label: "Análise fundamentalista", path: "/analise" },
   { icon: Activity, label: "Mercados", path: "/markets" },
   { icon: Radar, label: "Screener", path: "/screener" },
   { icon: GitCompareArrows, label: "Comparar", path: "/compare" },

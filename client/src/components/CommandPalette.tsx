@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { BarChart3, BellRing, BookOpen, BriefcaseBusiness, Calculator, GitCompareArrows, LayoutDashboard, ListFilter, Newspaper, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { BarChart3, BellRing, BookOpen, BriefcaseBusiness, Calculator, ChartNoAxesCombined, GitCompareArrows, LayoutDashboard, ListFilter, Newspaper, Search, ShieldCheck, Sparkles } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -15,6 +15,7 @@ import { trpc } from "@/lib/trpc";
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard, shortcut: "G H" },
   { label: "Guia do iniciante", path: "/guia", icon: BookOpen },
+  { label: "Análise fundamentalista", path: "/analise", icon: ChartNoAxesCombined },
   { label: "Mercados", path: "/markets", icon: BarChart3, shortcut: "G M" },
   { label: "Screener", path: "/screener", icon: ListFilter, shortcut: "G S" },
   { label: "Comparar ativos", path: "/compare", icon: GitCompareArrows },

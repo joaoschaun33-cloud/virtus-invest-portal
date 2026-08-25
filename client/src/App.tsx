@@ -23,6 +23,7 @@ const Trust = lazy(() => import("@/pages/Trust"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const AuthFinish = lazy(() => import("@/pages/AuthFinish"));
 const Guide = lazy(() => import("@/pages/Guide"));
+const FundamentalAnalysis = lazy(() => import("@/pages/FundamentalAnalysis"));
 
 function RouteFallback() {
   return (
@@ -73,6 +74,7 @@ function Router() {
         <Route path="/compare" component={Compare} />
         <Route path="/calculators" component={Calculators} />
         <Route path="/guia" component={Guide} />
+        <Route path="/analise" component={FundamentalAnalysis} />
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/trust" component={Trust} />
