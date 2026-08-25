@@ -15,6 +15,11 @@ test("home exposes the primary beta journeys without browser errors", async ({ p
   await expect(page.getByRole("heading", { name: /Clareza para cada decisão/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /começar pelo guia/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Explorar mercados/i })).toBeVisible();
+  const valePulse = page
+    .getByRole("link", { name: /VALE3/ })
+    .filter({ hasText: /R\$\s*\d/ })
+    .filter({ hasText: /%/ });
+  await expect(valePulse.first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 

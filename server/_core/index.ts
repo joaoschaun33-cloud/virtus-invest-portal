@@ -13,7 +13,7 @@ import { runAlertMonitorOnce } from "../alertMonitor";
 import { runCvmFinancialIngestion } from "../cvmFinancialIngestion";
 import { runB3CotahistIngestion } from "../b3Cotahist";
 import { runB3IndexSeed } from "../b3IndexSeed";
-import { matchesJobSecret } from "../jobAuth";
+import { authorizeJobRequest, matchesJobSecret } from "../jobAuth";
 import { getDb } from "../db";
 import { logger } from "./logger";
 import { randomUUID } from "node:crypto";
@@ -109,7 +109,7 @@ async function startServer() {
   });
   app.get("/healthz", healthHandler);
   app.get("/api/health", healthHandler);
-  app.get("/api/metrics", (req, res) => {
+  app.get("/api/metrics", async (req, res) => {
     const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
     if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
       res.status(401).json({ error: "unauthorized" });
@@ -152,8 +152,7 @@ async function startServer() {
   app.get("/readyz", readinessHandler);
   app.get("/api/ready", readinessHandler);
   app.post("/internal/jobs/alerts", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -166,8 +165,7 @@ async function startServer() {
     }
   });
   app.post("/internal/jobs/email-deliveries-cleanup", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -200,8 +198,7 @@ async function startServer() {
     }
   });
   app.post("/internal/jobs/cvm-financials", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -232,8 +229,7 @@ async function startServer() {
     }
   });
   app.post("/internal/jobs/b3-cotahist", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -269,8 +265,7 @@ async function startServer() {
     }
   });
   app.post("/internal/jobs/b3-universe", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -297,8 +292,7 @@ async function startServer() {
     }
   });
   app.post("/internal/jobs/demo-data-cleanup", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -324,8 +318,7 @@ async function startServer() {
     }
   });
   app.get("/internal/jobs/runs", async (req, res) => {
-    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+    if (!(await authorizeJobRequest(req))) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }

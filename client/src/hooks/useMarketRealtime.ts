@@ -10,6 +10,9 @@ type RealtimeQuote = {
   asOf: string;
 };
 
+const PRODUCTION_REALTIME_URL =
+  "wss://virtus-web-ysuazn5yga-rj.a.run.app/api/realtime";
+
 export function useMarketRealtime(tickers: string[]) {
   const [quotes, setQuotes] = useState<Record<string, RealtimeQuote>>({});
   const [connected, setConnected] = useState(false);
@@ -20,8 +23,13 @@ export function useMarketRealtime(tickers: string[]) {
       | string
       | undefined;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const fallbackUrl =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+        ? `${protocol}//${window.location.host}/api/realtime`
+        : PRODUCTION_REALTIME_URL;
     const socket = new WebSocket(
-      configuredUrl || `${protocol}//${window.location.host}/api/realtime`
+      configuredUrl || fallbackUrl
     );
     const requested = tickers.slice(0, 20);
     socket.onopen = () => {

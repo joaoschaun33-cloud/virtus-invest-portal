@@ -1099,6 +1099,7 @@ export async function savePreferences(
   input: {
     theme?: "light" | "dark" | "system";
     dashboardLayout?: string;
+    guideProgress?: string;
     emailAlerts?: boolean;
   }
 ) {
@@ -1110,6 +1111,7 @@ export async function savePreferences(
       userId,
       theme: input.theme ?? "system",
       dashboardLayout: input.dashboardLayout,
+      guideProgress: input.guideProgress,
       emailAlerts: input.emailAlerts === false ? 0 : 1,
     })
     .onDuplicateKeyUpdate({
@@ -1117,6 +1119,9 @@ export async function savePreferences(
         ...(input.theme ? { theme: input.theme } : {}),
         ...(input.dashboardLayout !== undefined
           ? { dashboardLayout: input.dashboardLayout }
+          : {}),
+        ...(input.guideProgress !== undefined
+          ? { guideProgress: input.guideProgress }
           : {}),
         ...(input.emailAlerts !== undefined
           ? { emailAlerts: input.emailAlerts ? 1 : 0 }

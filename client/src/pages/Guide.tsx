@@ -7,6 +7,8 @@ import { ArrowRight, BookOpen, Check, CheckCircle2, GraduationCap, Info, PieChar
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { trackProductEvent } from "@/lib/analytics";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const STORAGE_KEY = "virtus-guide-progress-v1";
 const GOAL_KEY = "virtus-guide-goal-v1";
@@ -62,6 +64,11 @@ const glossary = [
 function money(value: number) { return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }); }
 
 export default function Guide() {
+  const { user } = useAuth();
+  const preferences = trpc.portfolio.preferences.useQuery(undefined, {
+    enabled: Boolean(user),
+  });
+  const savePreferences = trpc.portfolio.savePreferences.useMutation();
   const [seen, setSeen] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[\"reserva\"]")); } catch { return new Set(["reserva"]); }
   });
@@ -72,9 +79,48 @@ export default function Guide() {
   });
   const [celebrate, setCelebrate] = useState(false);
   const celebrated = useRef(seen.size === blockIds.length);
+  const serverProgressApplied = useRef(false);
+
+  useEffect(() => {
+    if (!user || !preferences.isFetched || serverProgressApplied.current) return;
+    serverProgressApplied.current = true;
+    const stored = preferences.data?.guideProgress;
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as {
+        goal?: Goal | null;
+        seen?: string[];
+        quizzes?: string[];
+      };
+      const validSeen = (parsed.seen ?? []).filter(id => blockIds.includes(id));
+      const validQuizzes = (parsed.quizzes ?? []).filter(id => blockIds.includes(id));
+      const validGoal = parsed.goal && parsed.goal in goals ? parsed.goal : null;
+      setSeen(new Set(validSeen.length ? validSeen : ["reserva"]));
+      setQuizzes(new Set(validQuizzes));
+      setGoal(validGoal);
+      if (validGoal) setOpen([goals[validGoal].path[0]]);
+    } catch {
+      // A cópia local continua disponível se um registro antigo for inválido.
+    }
+  }, [preferences.data?.guideProgress, preferences.isFetched, user]);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(seen))); }, [seen]);
   useEffect(() => { localStorage.setItem(QUIZ_KEY, JSON.stringify(Array.from(quizzes))); }, [quizzes]);
+  useEffect(() => {
+    if (!user || !preferences.isFetched || !serverProgressApplied.current) return;
+    const timer = window.setTimeout(() => {
+      savePreferences.mutate({
+        guideProgress: JSON.stringify({
+          version: 1,
+          goal,
+          seen: Array.from(seen),
+          quizzes: Array.from(quizzes),
+          savedAt: new Date().toISOString(),
+        }),
+      });
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [goal, preferences.isFetched, quizzes, seen, user]);
   function chooseGoal(value: Goal) { setGoal(value); localStorage.setItem(GOAL_KEY, value); setOpen([goals[value].path[0]]); trackProductEvent("guide_goal_selected", { goal: value }); }
   function completeQuiz(id: string) { setQuizzes(previous => { const next = new Set(previous).add(id); trackProductEvent("guide_quiz_completed", { module: id, completed: next.size }); if (next.size === blockIds.length) trackProductEvent("guide_completed", { modules: next.size }); return next; }); }
   function changeOpen(values: string[]) {

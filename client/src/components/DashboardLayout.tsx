@@ -188,7 +188,10 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
+      <DashboardLayoutContent
+        sidebarWidth={sidebarWidth}
+        setSidebarWidth={setSidebarWidth}
+      >
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -197,11 +200,13 @@ export default function DashboardLayout({
 
 type DashboardLayoutContentProps = {
   children: React.ReactNode;
+  sidebarWidth: number;
   setSidebarWidth: (width: number) => void;
 };
 
 function DashboardLayoutContent({
   children,
+  sidebarWidth,
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
@@ -346,10 +351,28 @@ function DashboardLayoutContent({
           </SidebarFooter>
         </Sidebar>
         <div
+          role="separator"
+          aria-label="Redimensionar menu lateral"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_WIDTH}
+          aria-valuemax={MAX_WIDTH}
+          aria-valuenow={sidebarWidth}
+          tabIndex={isCollapsed ? -1 : 0}
           className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
           onMouseDown={() => {
             if (isCollapsed) return;
             setIsResizing(true);
+          }}
+          onKeyDown={event => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              const direction = event.key === "ArrowLeft" ? -1 : 1;
+              setSidebarWidth(
+                Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, sidebarWidth + direction * 16))
+              );
+            }
+            if (event.key === "Home") setSidebarWidth(MIN_WIDTH);
+            if (event.key === "End") setSidebarWidth(MAX_WIDTH);
           }}
           style={{ zIndex: 50 }}
         />

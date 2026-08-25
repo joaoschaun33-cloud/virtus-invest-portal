@@ -305,6 +305,7 @@ export const userPreferences = mysqlTable("userPreferences", {
     .notNull()
     .default("system"),
   dashboardLayout: text("dashboardLayout"),
+  guideProgress: text("guideProgress"),
   emailAlerts: tinyint("emailAlerts").notNull().default(1),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

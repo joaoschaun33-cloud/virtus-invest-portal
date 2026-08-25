@@ -346,6 +346,7 @@ export const portfolioRouter = router({
       z.object({
         theme: z.enum(["light", "dark", "system"]).optional(),
         dashboardLayout: z.string().max(10_000).optional(),
+        guideProgress: z.string().max(5_000).optional(),
         emailAlerts: z.boolean().optional(),
       })
     )
