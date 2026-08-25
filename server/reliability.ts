@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { createConnection } from "mysql2/promise";
 import { logger } from "./_core/logger";
 
 export type RetryOptions = {
@@ -92,16 +92,22 @@ export async function withDistributedLock<T>(
   const { getDb } = await import("./db");
   const db = await getDb();
   let acquired = false;
-  let releaseDatabaseLock = false;
+  let lockConnection: Awaited<ReturnType<typeof createConnection>> | null = null;
 
-  if (db) {
-    const result = await db.execute(
-      sql`SELECT GET_LOCK(${name}, ${waitSeconds}) AS acquired`
+  if (db && process.env.DATABASE_URL) {
+    // MySQL advisory locks belong to a connection. A dedicated connection is
+    // required so acquisition and release always occur in the same session.
+    lockConnection = await createConnection(process.env.DATABASE_URL);
+    const [rows] = await lockConnection.execute(
+      "SELECT GET_LOCK(?, ?) AS acquired",
+      [name, waitSeconds]
     );
-    const rows = Array.isArray(result) ? result[0] : result;
     const firstRow = Array.isArray(rows) ? rows[0] : rows;
     acquired = Number((firstRow as { acquired?: unknown })?.acquired) === 1;
-    releaseDatabaseLock = acquired;
+    if (!acquired) {
+      await lockConnection.end();
+      lockConnection = null;
+    }
   } else {
     if (localLocks.has(name)) return null;
     localLocks.add(name);
@@ -112,8 +118,12 @@ export async function withDistributedLock<T>(
   try {
     return await operation();
   } finally {
-    if (releaseDatabaseLock && db) {
-      await db.execute(sql`SELECT RELEASE_LOCK(${name})`);
+    if (lockConnection) {
+      try {
+        await lockConnection.execute("SELECT RELEASE_LOCK(?)", [name]);
+      } finally {
+        await lockConnection.end();
+      }
     } else {
       localLocks.delete(name);
     }

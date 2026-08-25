@@ -115,7 +115,7 @@ const content = {
       ],
       [
         "Como alterar a escolha",
-        "Você pode revisar a escolha quando o painel de privacidade for exibido ou apagar os cookies e o armazenamento local do domínio nas configurações do navegador para apresentá-lo novamente. Também pode bloquear cookies pelo navegador, ciente de que isso pode impedir autenticação e preferências essenciais.",
+        "Você pode revisar ou revogar a escolha a qualquer momento na área Confiança e dados, em Preferências de privacidade. Também pode bloquear cookies pelo navegador, ciente de que isso pode impedir autenticação e preferências essenciais.",
       ],
       [
         "Duração e terceiros",

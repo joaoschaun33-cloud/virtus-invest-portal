@@ -21,6 +21,8 @@ import { cleanupExpiredEmailDeliveries } from "../emailDelivery";
 import { withDistributedLock } from "../reliability";
 import { finishJobRun, listRecentJobRuns, startJobRun } from "../jobRuns";
 import { cleanupProductionDemoData } from "../demoDataCleanup";
+import { createApiRateLimit } from "../rateLimit";
+import { sql } from "drizzle-orm";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -43,6 +45,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", 1);
   const server = createServer(app);
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -105,16 +108,33 @@ async function startServer() {
   });
   app.get("/healthz", healthHandler);
   app.get("/api/health", healthHandler);
-  app.get("/api/metrics", (_req, res) => {
+  app.get("/api/metrics", (req, res) => {
+    const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json({ service: "virtus", metrics: getMetrics() });
   });
-  app.get("/readyz", async (_req, res) => {
+  const readinessHandler = async (
+    _req: express.Request,
+    res: express.Response
+  ) => {
     res.setHeader("Cache-Control", "no-store");
     const databaseConfigured = Boolean(process.env.DATABASE_URL);
-    const databaseAvailable = databaseConfigured
-      ? Boolean(await getDb())
-      : true;
+    let databaseAvailable = !databaseConfigured;
+    if (databaseConfigured) {
+      try {
+        const db = await getDb();
+        if (db) {
+          await db.execute(sql`SELECT 1 AS ready`);
+          databaseAvailable = true;
+        }
+      } catch (error) {
+        logger.error("readiness.database_failed", error);
+      }
+    }
     const ready = databaseAvailable;
     res.status(ready ? 200 : 503).json({
       status: ready ? "ready" : "not_ready",
@@ -127,7 +147,9 @@ async function startServer() {
           : "not_configured_demo_mode",
       },
     });
-  });
+  };
+  app.get("/readyz", readinessHandler);
+  app.get("/api/ready", readinessHandler);
   app.post("/internal/jobs/alerts", async (req, res) => {
     const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
     if (!matchesJobSecret(token, process.env.CRON_SECRET)) {
@@ -289,6 +311,7 @@ async function startServer() {
   // tRPC API
   app.use(
     "/api/trpc",
+    createApiRateLimit(),
     createExpressMiddleware({
       router: appRouter,
       createContext,

@@ -35,6 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { openCookiePreferences } from "@/components/CookieConsent";
 
 export default function Trust() {
   const { user, logout } = useAuth();
@@ -258,6 +259,25 @@ export default function Trust() {
             </ul>
           </Panel>
         </div>
+        <Panel className="mt-6 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="section-heading">Preferências de privacidade</h2>
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">
+                Revise a qualquer momento se deseja permitir métricas opcionais.
+                A recusa não afeta as funções essenciais do portal.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 rounded-xl"
+              onClick={openCookiePreferences}
+            >
+              Gerenciar métricas
+            </Button>
+          </div>
+        </Panel>
         {user && (
           <Panel className="mt-6 border-rose-500/25 p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -3,6 +3,7 @@ substitutions:
   _REPOSITORY: virtus
   _SERVICE: virtus-web
   _CLOUD_SQL_INSTANCE: ""
+  _REALTIME_URL: "wss://virtus-web-ysuazn5yga-rj.a.run.app/api/realtime"
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -13,6 +14,8 @@ steps:
         "build",
         "--build-arg",
         "VITE_FIREBASE_API_KEY=$$VITE_FIREBASE_API_KEY",
+        "--build-arg",
+        "VITE_REALTIME_URL=${_REALTIME_URL}",
         "--tag",
         "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}",
         ".",

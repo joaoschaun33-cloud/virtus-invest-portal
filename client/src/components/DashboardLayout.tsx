@@ -103,7 +103,10 @@ export default function DashboardLayout({
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  if (loading) {
+  // Anonymous pages can render immediately. Waiting for Firebase here replaced
+  // the whole viewport with a structurally different skeleton and caused a
+  // large layout shift when authentication initialization completed.
+  if (loading && !allowAnonymous) {
     return <DashboardLayoutSkeleton />;
   }
 

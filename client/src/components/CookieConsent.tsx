@@ -2,18 +2,30 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 
-const CONSENT_KEY = "virtus-cookie-consent-v1";
+export const CONSENT_KEY = "virtus-cookie-consent-v1";
+const CONSENT_RECORD_KEY = "virtus-cookie-consent-record-v1";
 export type CookieConsentValue = "necessary" | "analytics";
+
+export function openCookiePreferences() {
+  window.dispatchEvent(new Event("virtus:consent-open"));
+}
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     setVisible(!localStorage.getItem(CONSENT_KEY));
+    const open = () => setVisible(true);
+    window.addEventListener("virtus:consent-open", open);
+    return () => window.removeEventListener("virtus:consent-open", open);
   }, []);
 
   function save(value: CookieConsentValue) {
     localStorage.setItem(CONSENT_KEY, value);
+    localStorage.setItem(
+      CONSENT_RECORD_KEY,
+      JSON.stringify({ value, policyVersion: "2026-08-25", savedAt: new Date().toISOString() })
+    );
     window.dispatchEvent(new CustomEvent("virtus:consent", { detail: value }));
     setVisible(false);
   }

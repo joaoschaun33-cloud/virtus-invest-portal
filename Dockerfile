@@ -6,7 +6,9 @@ COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 COPY . .
 ARG VITE_FIREBASE_API_KEY
+ARG VITE_REALTIME_URL
 ENV VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
+ENV VITE_REALTIME_URL=${VITE_REALTIME_URL}
 RUN pnpm run check && pnpm run test && pnpm run build
 
 FROM build AS migration

@@ -25,7 +25,6 @@ export function useMarketRealtime(tickers: string[]) {
     );
     const requested = tickers.slice(0, 20);
     socket.onopen = () => {
-      setConnected(true);
       socket.send(JSON.stringify({ type: "subscribe", tickers: requested }));
     };
     socket.onmessage = event => {
@@ -34,7 +33,9 @@ export function useMarketRealtime(tickers: string[]) {
           type?: string;
           quote?: RealtimeQuote;
         };
-        if (message.type === "quote" && message.quote?.ticker) {
+        if (message.type === "ready") {
+          setConnected(true);
+        } else if (message.type === "quote" && message.quote?.ticker) {
           setQuotes(previous => ({
             ...previous,
             [message.quote!.ticker]: message.quote!,
