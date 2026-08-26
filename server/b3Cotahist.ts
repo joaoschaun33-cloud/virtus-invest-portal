@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { unzipSync } from "fflate";
 import { assets, quotes } from "../drizzle/schema";
 import { getDb } from "./db";
+import { runB3IbovespaIngestion, type B3IndexClose } from "./b3OfficialIndex";
 
 const DEFAULT_BASE_URL = "https://bvmf.bmfbovespa.com.br/InstDados/SerHist";
 const MAX_ZIP_BYTES = 8_000_000;
@@ -29,6 +30,7 @@ export type B3CotahistIngestionResult = {
   matched: number;
   saved: number;
   skipped: number;
+  index?: B3IndexClose & { saved: number };
 };
 
 function field(line: string, start: number, length: number) {
@@ -258,6 +260,9 @@ export async function runB3CotahistIngestion(input?: {
       .where(eq(assets.id, asset.id));
   }
 
+  const index = input?.text
+    ? undefined
+    : await runB3IbovespaIngestion(input?.referenceDate ?? new Date());
   return {
     tradingDate,
     sourceUrl: downloaded.sourceUrl,
@@ -265,5 +270,6 @@ export async function runB3CotahistIngestion(input?: {
     matched: matched.length,
     saved: matched.length,
     skipped: rows.length - matched.length,
+    index,
   };
 }

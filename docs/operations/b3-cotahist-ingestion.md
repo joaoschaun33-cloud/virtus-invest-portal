@@ -3,15 +3,16 @@
 ## Finalidade
 
 O job importa preços oficiais de fechamento (OHLC) e quantidade negociada do
-arquivo diário COTAHIST da B3. Ele atualiza somente ativos já cadastrados no
+arquivo diário COTAHIST da B3. O fechamento do Ibovespa é obtido separadamente
+na série oficial de Evolução Diária da B3. Ele atualiza somente ativos já cadastrados no
 Virtus; o arquivo não é usado para criar automaticamente todo o universo B3.
 
 ## Agenda
 
 - Endpoint: `POST /internal/jobs/b3-cotahist`.
 - Autenticação: `Authorization: Bearer <CRON_SECRET>`.
-- Frequência recomendada: terça a sábado, 00:30 UTC (21:30 em Brasília no dia
-  anterior), cobrindo os pregões de segunda a sexta.
+- Frequência recomendada: duas execuções em dias de pregão: 21:30 e 23:00 no
+  horário de Brasília. A segunda execução recupera publicações tardias da B3.
 - O job procura o arquivo mais recente em até oito dias, ignorando fins de
   semana, e pode ser reexecutado sem duplicar a cotação.
 

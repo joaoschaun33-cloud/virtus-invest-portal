@@ -254,7 +254,7 @@ async function startServer() {
       );
       res.status(200).json({
         status: "ok",
-        skipped: result === null,
+        lockSkipped: result === null,
         ...(result ?? {}),
       });
     } catch (error) {
