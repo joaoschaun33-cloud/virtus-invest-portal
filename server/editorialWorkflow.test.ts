@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   approveEditorialDraft,
   createEditorialDraft,
+  recordEditorialPublication,
+  rejectEditorialDraft,
   validateEditorialDraft,
 } from "./editorialWorkflow";
 
@@ -51,5 +53,45 @@ describe("editorial workflow", () => {
       "Autor e aprovador"
     );
     expect(approveEditorialDraft(draft, "editor@virtus").status).toBe("approved");
+  });
+
+  it("records rejection reason and never publishes an unapproved draft", () => {
+    const draft = createEditorialDraft({
+      slot: "intraday",
+      title: "Movimentos observados",
+      body: "O índice varia conforme o fechamento de referência.",
+      facts: ["Variação observada"],
+      sources: [officialSource],
+      createdBy: "automacao@virtus",
+    });
+    expect(rejectEditorialDraft(draft, "editor@virtus", "Atualizar horário")).toMatchObject({
+      status: "rejected",
+      reviewNote: "Atualizar horário",
+    });
+    expect(() =>
+      recordEditorialPublication(draft, {
+        publisher: "editor@virtus",
+        channel: "LinkedIn",
+      })
+    ).toThrow("Somente um rascunho aprovado");
+  });
+
+  it("records manual publication only after approval", () => {
+    const draft = createEditorialDraft({
+      slot: "close",
+      title: "Fechamento do mercado",
+      body: "O índice encerrou a sessão conforme a fonte oficial.",
+      facts: ["Fechamento confirmado"],
+      sources: [officialSource],
+      createdBy: "automacao@virtus",
+    });
+    const approved = approveEditorialDraft(draft, "editor@virtus");
+    expect(
+      recordEditorialPublication(approved, {
+        publisher: "social@virtus",
+        channel: "Instagram",
+        url: "https://instagram.com/p/exemplo",
+      })
+    ).toMatchObject({ status: "published", publishedChannel: "Instagram" });
   });
 });

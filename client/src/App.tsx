@@ -23,6 +23,7 @@ const Legal = lazy(() => import("@/pages/Legal"));
 const AuthFinish = lazy(() => import("@/pages/AuthFinish"));
 const Guide = lazy(() => import("@/pages/Guide"));
 const FundamentalAnalysis = lazy(() => import("@/pages/FundamentalAnalysis"));
+const Editorial = lazy(() => import("@/pages/Editorial"));
 const CommandPalette = lazy(() => import("@/components/CommandPalette"));
 
 function RouteFallback() {
@@ -78,6 +79,7 @@ function Router() {
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/trust" component={Trust} />
+        <Route path="/editorial" component={Editorial} />
         <Route path="/privacy" component={Legal} />
         <Route path="/terms" component={Legal} />
         <Route path="/cookies" component={Legal} />

@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 export type EditorialSlot = "morning" | "intraday" | "close" | "breaking";
-export type EditorialStatus = "draft" | "needs_review" | "approved" | "rejected";
+export type EditorialStatus =
+  | "draft"
+  | "needs_review"
+  | "approved"
+  | "rejected"
+  | "published";
 
 export type EditorialSource = {
   name: string;
@@ -23,6 +28,11 @@ export type EditorialDraft = {
   issues: string[];
   approvedBy?: string;
   approvedAt?: string;
+  reviewNote?: string;
+  publishedBy?: string;
+  publishedAt?: string;
+  publishedChannel?: string;
+  publishedUrl?: string;
 };
 
 const prohibitedPatterns = [
@@ -47,6 +57,13 @@ export function validateEditorialDraft(
       issues.push(`A fonte ${source.name} precisa usar HTTPS.`);
     if (Number.isNaN(new Date(source.observedAt).valueOf()))
       issues.push(`A fonte ${source.name} precisa de horário válido.`);
+    try {
+      const parsed = new URL(source.url);
+      if (parsed.username || parsed.password)
+        issues.push(`A fonte ${source.name} não pode conter credenciais.`);
+    } catch {
+      issues.push(`A fonte ${source.name} precisa ter URL válida.`);
+    }
   }
   const independentSourceHosts = new Set(
     input.sources.flatMap(source => {
@@ -102,5 +119,44 @@ export function approveEditorialDraft(
     status: "approved",
     approvedBy: reviewer,
     approvedAt: new Date().toISOString(),
+  };
+}
+
+export function rejectEditorialDraft(
+  draft: EditorialDraft,
+  reviewer: string,
+  note: string
+): EditorialDraft {
+  if (draft.status !== "needs_review")
+    throw new Error("Rascunho não está aguardando revisão.");
+  if (reviewer.trim() === draft.createdBy.trim())
+    throw new Error("Autor e revisor devem ser pessoas diferentes.");
+  if (!note.trim()) throw new Error("Informe o motivo da rejeição.");
+  return {
+    ...draft,
+    status: "rejected",
+    approvedBy: reviewer,
+    approvedAt: new Date().toISOString(),
+    reviewNote: note.trim(),
+  };
+}
+
+export function recordEditorialPublication(
+  draft: EditorialDraft,
+  input: { publisher: string; channel: string; url?: string }
+): EditorialDraft {
+  if (draft.status !== "approved")
+    throw new Error("Somente um rascunho aprovado pode ser registrado como publicado.");
+  if (!input.publisher.trim() || !input.channel.trim())
+    throw new Error("Publicador e canal são obrigatórios.");
+  if (input.url && !/^https:\/\//i.test(input.url))
+    throw new Error("A URL da publicação precisa usar HTTPS.");
+  return {
+    ...draft,
+    status: "published",
+    publishedBy: input.publisher.trim(),
+    publishedAt: new Date().toISOString(),
+    publishedChannel: input.channel.trim(),
+    publishedUrl: input.url?.trim(),
   };
 }

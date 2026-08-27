@@ -191,6 +191,48 @@ export const jobRuns = mysqlTable(
 
 export type JobRun = typeof jobRuns.$inferSelect;
 
+/** Human-reviewed editorial queue. Automated jobs may create drafts only. */
+export const editorialDrafts = mysqlTable(
+  "editorialDrafts",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    generationKey: varchar("generationKey", { length: 120 }).notNull(),
+    slot: mysqlEnum("slot", ["morning", "intraday", "close", "breaking"]).notNull(),
+    title: varchar("title", { length: 240 }).notNull(),
+    body: text("body").notNull(),
+    facts: text("facts").notNull(),
+    sources: text("sources").notNull(),
+    issues: text("issues").notNull(),
+    status: mysqlEnum("status", [
+      "draft",
+      "needs_review",
+      "approved",
+      "rejected",
+      "published",
+    ])
+      .notNull()
+      .default("draft"),
+    createdBy: varchar("createdBy", { length: 160 }).notNull(),
+    reviewedBy: varchar("reviewedBy", { length: 160 }),
+    reviewNote: text("reviewNote"),
+    reviewedAt: timestamp("reviewedAt"),
+    publishedBy: varchar("publishedBy", { length: 160 }),
+    publishedChannel: varchar("publishedChannel", { length: 80 }),
+    publishedUrl: text("publishedUrl"),
+    publishedAt: timestamp("publishedAt"),
+    scheduledFor: timestamp("scheduledFor"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    generationKeyIndex: uniqueIndex("editorial_drafts_generation_key_idx").on(
+      table.generationKey
+    ),
+  })
+);
+
+export type EditorialDraftRow = typeof editorialDrafts.$inferSelect;
+
 export const news = mysqlTable("news", {
   id: int("id").autoincrement().primaryKey(),
   assetId: int("assetId"),

@@ -24,6 +24,7 @@ import { finishJobRun, listRecentJobRuns, startJobRun } from "../jobRuns";
 import { cleanupProductionDemoData } from "../demoDataCleanup";
 import { createApiRateLimit } from "../rateLimit";
 import { sql } from "drizzle-orm";
+import { generateEditorialDraft } from "../editorialAutomation";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -162,6 +163,44 @@ async function startServer() {
     } catch (error) {
       logger.error("alerts.scheduled_cycle_failed", error, { job: "alerts" });
       res.status(500).json({ status: "error" });
+    }
+  });
+  app.post("/internal/jobs/editorial-drafts/:slot", async (req, res) => {
+    if (!(await authorizeJobRequest(req))) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const slot = req.params.slot;
+    if (slot !== "morning" && slot !== "intraday" && slot !== "close") {
+      res.status(400).json({ error: "invalid_editorial_slot" });
+      return;
+    }
+    try {
+      const result = await withDistributedLock(
+        `virtus:jobs:editorial:${slot}`,
+        async () => {
+          const run = await startJobRun(`editorial-${slot}`);
+          try {
+            const draft = await generateEditorialDraft(slot);
+            await finishJobRun(run, {
+              status: "succeeded",
+              processed: 1,
+              details: { draftId: draft.id, draftStatus: draft.status },
+            });
+            return { draftId: draft.id, draftStatus: draft.status };
+          } catch (error) {
+            await finishJobRun(run, { status: "failed", error, failed: 1 });
+            throw error;
+          }
+        }
+      );
+      res.status(200).json({ status: "ok", skipped: result === null, ...(result ?? {}) });
+    } catch (error) {
+      logger.error("editorial.draft_generation_failed", error, { slot });
+      res.status(409).json({
+        status: "not_generated",
+        reason: error instanceof Error ? error.message : "unknown_error",
+      });
     }
   });
   app.post("/internal/jobs/email-deliveries-cleanup", async (req, res) => {

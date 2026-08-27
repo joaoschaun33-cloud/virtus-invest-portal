@@ -31,6 +31,7 @@ import {
   LayoutDashboard,
   LogOut,
   Newspaper,
+  FileCheck2,
   PanelLeft,
   Radar,
   ShieldCheck,
@@ -218,7 +219,10 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const visibleMenuItems = user?.role === "admin"
+    ? [...menuItems, { icon: FileCheck2, label: "Operação editorial", path: "/editorial" }]
+    : menuItems;
+  const activeMenuItem = visibleMenuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
   const accountLabel = user
     ? user.name ||
@@ -291,7 +295,7 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
+              {visibleMenuItems.map(item => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
