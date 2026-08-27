@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import CommandPalette from "@/components/CommandPalette";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ConsentAnalytics } from "@/components/ConsentAnalytics";
 import { RouteMetadata } from "@/components/RouteMetadata";
@@ -24,6 +23,7 @@ const Legal = lazy(() => import("@/pages/Legal"));
 const AuthFinish = lazy(() => import("@/pages/AuthFinish"));
 const Guide = lazy(() => import("@/pages/Guide"));
 const FundamentalAnalysis = lazy(() => import("@/pages/FundamentalAnalysis"));
+const CommandPalette = lazy(() => import("@/components/CommandPalette"));
 
 function RouteFallback() {
   return (
@@ -94,8 +94,18 @@ function App() {
 
   useEffect(() => {
     const openPalette = () => setPaletteOpen(true);
+    const openPaletteFromKeyboard = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
     window.addEventListener("virtus:command-open", openPalette);
-    return () => window.removeEventListener("virtus:command-open", openPalette);
+    window.addEventListener("keydown", openPaletteFromKeyboard);
+    return () => {
+      window.removeEventListener("virtus:command-open", openPalette);
+      window.removeEventListener("keydown", openPaletteFromKeyboard);
+    };
   }, []);
 
   return (
@@ -103,7 +113,11 @@ function App() {
       <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <Toaster />
-          <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+          {paletteOpen && (
+            <Suspense fallback={null}>
+              <CommandPalette open onOpenChange={setPaletteOpen} />
+            </Suspense>
+          )}
           <RouteMetadata />
           <ConsentAnalytics />
           <Router />

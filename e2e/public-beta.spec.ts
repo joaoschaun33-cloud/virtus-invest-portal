@@ -23,6 +23,15 @@ test("home exposes the primary beta journeys without browser errors", async ({ p
   expect(errors).toEqual([]);
 });
 
+test("global search loads on demand and remains keyboard accessible", async ({ page }) => {
+  await page.goto("/");
+  await keepEssentialCookies(page);
+  await page.keyboard.press("Control+K");
+  await expect(page.getByRole("dialog", { name: "Buscar no Virtus" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Buscar no Virtus" })).toBeHidden();
+});
+
 test("guide supports goal selection and learning progress", async ({ page }) => {
   await page.goto("/guia");
   await keepEssentialCookies(page);

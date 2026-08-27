@@ -6,10 +6,15 @@ import { useCallback, useEffect, useState } from "react";
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
   redirectPath?: string;
+  initializationDelayMs?: number;
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath } = options ?? {};
+  const {
+    redirectOnUnauthenticated = false,
+    redirectPath,
+    initializationDelayMs = 0,
+  } = options ?? {};
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const utils = trpc.useUtils();
@@ -17,23 +22,27 @@ export function useAuth(options?: UseAuthOptions) {
   useEffect(() => {
     let active = true;
     let unsubscribe: () => void = () => undefined;
-    void import("@/lib/firebaseAuth")
-      .then(({ observeFirebaseAuth }) => {
-        if (!active) return;
-        unsubscribe = observeFirebaseAuth(user => {
-          setFirebaseUser(user);
-          setAuthLoading(false);
-          void utils.auth.me.invalidate();
+    const initialize = () => {
+      void import("@/lib/firebaseAuth")
+        .then(({ observeFirebaseAuth }) => {
+          if (!active) return;
+          unsubscribe = observeFirebaseAuth(user => {
+            setFirebaseUser(user);
+            setAuthLoading(false);
+            void utils.auth.me.invalidate();
+          });
+        })
+        .catch(() => {
+          if (active) setAuthLoading(false);
         });
-      })
-      .catch(() => {
-        if (active) setAuthLoading(false);
-      });
+    };
+    const timeout = window.setTimeout(initialize, initializationDelayMs);
     return () => {
       active = false;
+      window.clearTimeout(timeout);
       unsubscribe();
     };
-  }, [utils.auth.me]);
+  }, [initializationDelayMs, utils.auth.me]);
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     enabled: Boolean(firebaseUser),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { BarChart3, BellRing, BookOpen, BriefcaseBusiness, Calculator, ChartNoAxesCombined, GitCompareArrows, LayoutDashboard, ListFilter, Newspaper, Search, ShieldCheck, Sparkles } from "lucide-react";
 import {
@@ -31,17 +31,6 @@ export default function CommandPalette({ open, onOpenChange }: { open: boolean; 
   const [search, setSearch] = useState("");
   const input = useMemo(() => ({ search: search.trim() || undefined }), [search]);
   const assetsQuery = trpc.market.assets.useQuery(input, { staleTime: 30_000 });
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        onOpenChange(!open);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onOpenChange, open]);
 
   const navigate = (path: string) => {
     onOpenChange(false);

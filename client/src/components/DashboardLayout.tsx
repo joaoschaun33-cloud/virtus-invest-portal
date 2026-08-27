@@ -74,7 +74,10 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user } = useAuth({
+    // Public content must paint before the optional Firebase iframe starts.
+    initializationDelayMs: allowAnonymous ? 2_500 : 0,
+  });
   const [loginEmail, setLoginEmail] = useState("");
   const [sendingLink, setSendingLink] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
