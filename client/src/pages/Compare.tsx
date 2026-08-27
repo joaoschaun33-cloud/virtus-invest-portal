@@ -224,7 +224,7 @@ export default function Compare() {
                 Indicadores públicos, lado a lado.
               </p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabela comparativa de fundamentos">
               <table className="w-full min-w-[420px] text-left">
                 <thead>
                   <tr className="border-b border-border/60 text-[10px] uppercase tracking-[.13em] text-muted-foreground">

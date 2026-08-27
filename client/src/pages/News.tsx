@@ -67,7 +67,7 @@ export default function News() {
           description="Acompanhe divulgações, resultados e calendário macroeconômico agregados com total transparência de fontes e sem recomendações automáticas."
           actions={
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
                 <Radio className="h-3 w-3 animate-pulse" />
                 Dados identificados por fonte e horário de referência
               </span>
@@ -236,7 +236,7 @@ export default function News() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-semibold">{item.title}</p>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${item.importance === "HIGH" ? "bg-rose-500/10 text-rose-600 dark:text-rose-300" : "bg-muted text-muted-foreground"}`}
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${item.importance === "HIGH" ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"}`}
                           >
                             {item.importance === "HIGH" ? "Alta" : "Normal"}
                           </span>

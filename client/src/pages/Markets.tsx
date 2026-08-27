@@ -222,7 +222,7 @@ export default function Markets() {
                         className="min-w-0"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-primary">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-red-700 dark:text-red-300">
                             {asset.ticker.slice(0, 2)}
                           </div>
                           <div className="min-w-0">
@@ -251,7 +251,7 @@ export default function Markets() {
                         />
                       </div>
                       <p
-                        className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
+                        className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}
                       >
                         {numericChange !== null && numericChange >= 0
                           ? "+"
