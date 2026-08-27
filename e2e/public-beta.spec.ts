@@ -30,6 +30,10 @@ test("guide supports goal selection and learning progress", async ({ page }) => 
   await expect(page.getByLabel("Sua trilha sugerida")).toBeVisible();
   await page.getByRole("button", { name: /Risco, retorno e liquidez/ }).click();
   await expect(page.getByText(/O que normalmente acontece ao buscar maior retorno/)).toBeVisible();
+  await page.getByRole("button", { name: /Composição · não iniciado/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Organizar minha carteira manual" })
+  ).toBeVisible();
 });
 
 test("fundamental analysis loads a real Brazilian ticker", async ({ page }) => {

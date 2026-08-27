@@ -144,7 +144,7 @@ export default function Guide() {
       </header>
 
       <GoalChooser value={goal} onChange={chooseGoal} />
-      {goal && <LearningPath goal={goal} seen={seen} quizzes={quizzes} />}
+      {goal && <LearningPath goal={goal} seen={seen} quizzes={quizzes} onOpen={id => setOpen(current => current.includes(id) ? current : [...current, id])} />}
 
       <div className="mt-6 flex items-center gap-3" aria-label={`${quizzes.size} de 5 módulos concluídos`}>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${quizzes.size * 20}%` }} /></div>
@@ -172,8 +172,12 @@ function GoalChooser({ value, onChange }: { value: Goal | null; onChange: (goal:
   return <section className="mt-6 rounded-2xl border bg-card p-5" aria-labelledby="goal-title"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><Target className="h-4 w-4" /></span><div><h2 id="goal-title" className="font-semibold">O que você quer fazer primeiro?</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Sua escolha apenas organiza a ordem sugerida. Todo o conteúdo continua disponível.</p></div></div><div className="mt-4 grid gap-3 md:grid-cols-3">{(Object.entries(goals) as [Goal, typeof goals[Goal]][]).map(([key, item]) => <button key={key} type="button" aria-pressed={value === key} onClick={() => onChange(key)} className={`rounded-xl border p-4 text-left transition ${value === key ? "border-primary bg-primary/[.06] ring-1 ring-primary" : "hover:border-primary/40"}`}><span className="flex items-center justify-between font-semibold">{item.title}{value === key && <CheckCircle2 className="h-4 w-4 text-primary" />}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span></button>)}</div></section>;
 }
 
-function LearningPath({ goal, seen, quizzes }: { goal: Goal; seen: Set<string>; quizzes: Set<string> }) {
-  return <section className="mt-4 rounded-2xl bg-muted/35 p-4" aria-label="Sua trilha sugerida"><p className="text-xs font-semibold uppercase tracking-[.14em] text-primary">Sua trilha sugerida</p><div className="mt-3 flex flex-wrap items-center gap-2">{goals[goal].path.map((id, index) => { const completed = quizzes.has(id); const visited = seen.has(id); return <span key={id} className="flex items-center gap-2"><a href={`#${id}`} aria-label={`${blockLabels[id]} · ${completed ? "concluído" : visited ? "visitado" : "não iniciado"}`} className={`rounded-full border px-3 py-1.5 text-xs font-medium ${completed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : visited ? "border-primary/30 bg-primary/[.06] text-primary" : "bg-card"}`}>{completed && <Check className="mr-1 inline h-3 w-3" />}{blockLabels[id]}</a>{index < goals[goal].path.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}</span>; })}</div><p className="mt-3 text-[11px] text-muted-foreground">Azul: visitado · verde: verificação concluída.</p></section>;
+function LearningPath({ goal, seen, quizzes, onOpen }: { goal: Goal; seen: Set<string>; quizzes: Set<string>; onOpen: (id: string) => void }) {
+  const openAndFocus = (id: string) => {
+    onOpen(id);
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+  return <section className="mt-4 rounded-2xl bg-muted/35 p-4" aria-label="Sua trilha sugerida"><p className="text-xs font-semibold uppercase tracking-[.14em] text-primary">Sua trilha sugerida</p><div className="mt-3 flex flex-wrap items-center gap-2">{goals[goal].path.map((id, index) => { const completed = quizzes.has(id); const visited = seen.has(id); return <span key={id} className="flex items-center gap-2"><button type="button" onClick={() => openAndFocus(id)} aria-label={`${blockLabels[id]} · ${completed ? "concluído" : visited ? "visitado" : "não iniciado"}`} className={`rounded-full border px-3 py-1.5 text-xs font-medium ${completed ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : visited ? "border-primary/30 bg-primary/[.06] text-primary" : "bg-card"}`}>{completed && <Check className="mr-1 inline h-3 w-3" />}{blockLabels[id]}</button>{index < goals[goal].path.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}</span>; })}</div><p className="mt-3 text-[11px] text-muted-foreground">Azul: visitado · verde: verificação concluída.</p></section>;
 }
 
 function LearningCheck({ id, completed, question, options, correct, onComplete }: { id: string; completed: boolean; question: string; options: string[]; correct: number; onComplete: (id: string) => void }) {
