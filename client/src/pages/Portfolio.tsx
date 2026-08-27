@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
   WalletCards,
+  AlertTriangle,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -28,6 +29,7 @@ import {
   formatPercent,
   formatPrice,
   numberValue,
+  optionalNumberValue,
 } from "@/lib/formatters";
 import { downloadCsv, printReport } from "@/lib/exporters";
 import PortfolioInsight from "@/components/PortfolioInsight";
@@ -109,21 +111,32 @@ export default function Portfolio() {
     (total, position) => total + numberValue(position.invested),
     0
   );
-  const totalValue = positions.reduce(
+  const positionsWithoutPrice = positions.filter(
+    position => optionalNumberValue(position.currentValue) === null
+  );
+  const pricedValue = positions.reduce(
     (total, position) => total + numberValue(position.currentValue),
     0
   );
-  const totalProfit = totalValue - totalInvested;
-  const returnPercent = totalInvested ? (totalProfit / totalInvested) * 100 : 0;
+  const hasCompleteValuation = positionsWithoutPrice.length === 0;
+  const totalValue = hasCompleteValuation ? pricedValue : null;
+  const totalProfit = totalValue === null ? null : totalValue - totalInvested;
+  const returnPercent =
+    totalProfit === null
+      ? null
+      : totalInvested
+        ? (totalProfit / totalInvested) * 100
+        : 0;
   const allocation = useMemo(() => {
     const byType = new Map<string, number>();
-    positions.forEach(position =>
+    positions.forEach(position => {
+      const currentValue = optionalNumberValue(position.currentValue);
+      if (currentValue === null) return;
       byType.set(
         position.asset.assetType,
-        (byType.get(position.asset.assetType) ?? 0) +
-          numberValue(position.currentValue)
-      )
-    );
+        (byType.get(position.asset.assetType) ?? 0) + currentValue
+      );
+    });
     return Array.from(byType.entries()).sort((a, b) => b[1] - a[1]);
   }, [positions]);
   const allocationTotal = allocation.reduce(
@@ -176,9 +189,9 @@ export default function Portfolio() {
         ativo: position.asset.name,
         classe: position.asset.assetType,
         quantidade: position.quantity,
-        valorAtual: numberValue(position.currentValue),
+        valorAtual: optionalNumberValue(position.currentValue),
         investido: numberValue(position.invested),
-        rentabilidade: numberValue(position.returnPercent),
+        rentabilidade: optionalNumberValue(position.returnPercent),
       }))
     );
     if (downloaded) toast.success("CSV da carteira gerado.");
@@ -225,7 +238,7 @@ export default function Portfolio() {
             position.asset.assetType,
             position.quantity,
             formatPrice(position.currentValue),
-            formatPercent(numberValue(position.returnPercent)),
+            formatPercent(position.returnPercent),
           ]),
         },
         {
@@ -333,6 +346,21 @@ export default function Portfolio() {
           o último preço disponível e não inclui impostos, proventos ou eventos
           corporativos.
         </div>
+        {user && positionsWithoutPrice.length > 0 && (
+          <div
+            role="alert"
+            className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[.07] p-4 text-xs leading-5 text-amber-900 dark:text-amber-200"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              A avaliação consolidada está indisponível porque{" "}
+              {positionsWithoutPrice.map(item => item.asset.ticker).join(", ")}{" "}
+              {positionsWithoutPrice.length === 1 ? "não possui" : "não possuem"}{" "}
+              preço atual. O custo registrado permanece preservado e nenhuma
+              perda foi presumida.
+            </p>
+          </div>
+        )}
         {!user ? (
           <Panel className="mb-6 p-8">
             <EmptyState
@@ -369,9 +397,9 @@ export default function Portfolio() {
                   Resultado absoluto
                 </p>
                 <p
-                  className={`mt-3 text-2xl font-semibold tracking-[-.04em] ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
+                  className={`mt-3 text-2xl font-semibold tracking-[-.04em] ${totalProfit === null ? "text-muted-foreground" : totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
                 >
-                  {totalProfit >= 0 ? "+" : ""}
+                  {totalProfit !== null && totalProfit >= 0 ? "+" : ""}
                   {formatPrice(totalProfit)}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
@@ -381,9 +409,9 @@ export default function Portfolio() {
               <div className="metric-card">
                 <p className="text-xs text-muted-foreground">Rentabilidade</p>
                 <p
-                  className={`mt-3 text-2xl font-semibold tracking-[-.04em] ${returnPercent >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
+                  className={`mt-3 text-2xl font-semibold tracking-[-.04em] ${returnPercent === null ? "text-muted-foreground" : returnPercent >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
                 >
-                  {returnPercent >= 0 ? "+" : ""}
+                  {returnPercent !== null && returnPercent >= 0 ? "+" : ""}
                   {formatPercent(returnPercent)}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
@@ -437,9 +465,12 @@ export default function Portfolio() {
                         </p>
                       </div>
                       <div
-                        className={`text-sm font-semibold ${numberValue(position.returnPercent) >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
+                        className={`text-sm font-semibold ${optionalNumberValue(position.returnPercent) === null ? "text-muted-foreground" : numberValue(position.returnPercent) >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
                       >
-                        {numberValue(position.returnPercent) >= 0 ? "+" : ""}
+                        {optionalNumberValue(position.returnPercent) !== null &&
+                        numberValue(position.returnPercent) >= 0
+                          ? "+"
+                          : ""}
                         {formatPercent(position.returnPercent)}
                       </div>
                     </div>

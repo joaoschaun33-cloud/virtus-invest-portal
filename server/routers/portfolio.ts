@@ -25,6 +25,7 @@ import {
 } from "../db";
 import { getAssetByTicker } from "../db";
 import { deleteFirebaseUser } from "../_core/firebaseAuth";
+import { hasValidPositionLedger } from "../portfolioLogic";
 
 export type ManualTransactionValidationInput = {
   transactionType: "BUY" | "SELL";
@@ -245,6 +246,20 @@ export const portfolioRouter = router({
   deleteTransaction: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
+      const current = await listTransactions(ctx.user.id);
+      const target = current.find(row => row.transaction?.id === input.id);
+      if (!target)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Operação não encontrada.",
+        });
+      const remaining = current.filter(row => row.transaction.id !== input.id);
+      if (!hasValidPositionLedger(remaining))
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Esta exclusão deixaria uma venda posterior sem saldo. Exclua ou ajuste primeiro as operações posteriores.",
+        });
       await deleteTransaction(ctx.user.id, input.id);
       return { ok: true };
     }),

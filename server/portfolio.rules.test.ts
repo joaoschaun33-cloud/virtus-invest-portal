@@ -4,6 +4,7 @@ import { validateManualTransaction } from "./routers/portfolio";
 import {
   applyWatchlistChange,
   estimateDividendIncome,
+  hasValidPositionLedger,
   summarizePortfolioPerformance,
   summarizePortfolioRows,
 } from "./portfolioLogic";
@@ -73,6 +74,51 @@ describe("watchlist and portfolio logic", () => {
     expect(applyWatchlistChange([], 7, "remove")).toEqual([]);
   });
 
+  it("rejects a ledger where a sale no longer has an earlier position", () => {
+    const asset = { id: 1, ticker: "PETR4", lastPrice: "40" };
+    expect(
+      hasValidPositionLedger([
+        {
+          asset,
+          transaction: {
+            id: 2,
+            transactionDate: "2026-02-10",
+            transactionType: "SELL",
+            quantity: "4",
+            unitPrice: "40",
+            fees: "0",
+          },
+        },
+      ])
+    ).toBe(false);
+    expect(
+      hasValidPositionLedger([
+        {
+          asset,
+          transaction: {
+            id: 1,
+            transactionDate: "2026-01-10",
+            transactionType: "BUY",
+            quantity: "5",
+            unitPrice: "30",
+            fees: "0",
+          },
+        },
+        {
+          asset,
+          transaction: {
+            id: 2,
+            transactionDate: "2026-02-10",
+            transactionType: "SELL",
+            quantity: "4",
+            unitPrice: "40",
+            fees: "0",
+          },
+        },
+      ])
+    ).toBe(true);
+  });
+
   it("consolidates buys and sells using average cost and current price", () => {
     const asset = { id: 1, ticker: "PETR4", lastPrice: "40" };
     const summary = summarizePortfolioRows([
@@ -140,6 +186,28 @@ describe("watchlist and portfolio logic", () => {
         },
       ])
     ).toEqual([]);
+  });
+
+  it("keeps valuation unavailable when the asset has no current price", () => {
+    const asset = { id: 1, ticker: "TEST3", lastPrice: null };
+    const summary = summarizePortfolioRows([
+      {
+        asset,
+        transaction: {
+          transactionType: "BUY",
+          quantity: "10",
+          unitPrice: "30",
+          fees: "2",
+        },
+      },
+    ]);
+
+    expect(summary[0]).toMatchObject({
+      invested: 302,
+      currentValue: null,
+      profit: null,
+      returnPercent: null,
+    });
   });
 
   it("keeps realized result separate from the value of remaining positions", () => {

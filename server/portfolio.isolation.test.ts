@@ -92,17 +92,34 @@ describe("isolamento entre contas no roteador de carteira", () => {
   it("sempre combina o id do objeto com o proprietário autenticado nas mutações", async () => {
     const callerA = portfolioRouter.createCaller(context(userA));
     const foreignTransactionId = 9002;
+    const ownedTransactionId = 9001;
     const foreignAlertId = 9003;
     const foreignNotificationId = 9004;
 
-    await callerA.deleteTransaction({ id: foreignTransactionId });
+    await expect(
+      callerA.deleteTransaction({ id: foreignTransactionId })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    dbMocks.listTransactions.mockResolvedValueOnce([
+      {
+        asset: { id: 1 },
+        transaction: {
+          id: ownedTransactionId,
+          transactionType: "BUY",
+          quantity: "1",
+          unitPrice: "10",
+          fees: "0",
+          transactionDate: new Date("2026-01-01T12:00:00Z"),
+        },
+      },
+    ]);
+    await callerA.deleteTransaction({ id: ownedTransactionId });
     await callerA.toggleAlert({ id: foreignAlertId, isActive: false });
     await callerA.deleteAlert({ id: foreignAlertId });
     await callerA.markNotificationRead({ id: foreignNotificationId });
 
     expect(dbMocks.deleteTransaction).toHaveBeenCalledWith(
       userA.id,
-      foreignTransactionId
+      ownedTransactionId
     );
     expect(dbMocks.toggleAlert).toHaveBeenCalledWith(
       userA.id,

@@ -1,15 +1,26 @@
 import { CircleAlert, Landmark, PieChart, TrendingUp } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { formatPercent, formatPrice, numberValue } from "@/lib/formatters";
+import {
+  formatPercent,
+  formatPrice,
+  numberValue,
+  optionalNumberValue,
+} from "@/lib/formatters";
 
 export default function PortfolioInsight() {
   const performance = trpc.portfolio.performance.useQuery();
   const positions = performance.data?.positions ?? [];
-  const totalValue = positions.reduce(
+  const pricedPositions = positions.filter(
+    position => optionalNumberValue(position.currentValue) !== null
+  );
+  const hasUnpricedPositions = pricedPositions.length !== positions.length;
+  const totalValue = pricedPositions.reduce(
     (total, position) => total + numberValue(position.currentValue),
     0
   );
-  const largest = positions.reduce<(typeof positions)[number] | undefined>(
+  const largest = pricedPositions.reduce<
+    (typeof positions)[number] | undefined
+  >(
     (current, position) =>
       !current ||
       numberValue(position.currentValue) > numberValue(current.currentValue)
@@ -18,9 +29,9 @@ export default function PortfolioInsight() {
     undefined
   );
   const concentration =
-    largest && totalValue
+    !hasUnpricedPositions && largest && totalValue
       ? (numberValue(largest.currentValue) / totalValue) * 100
-      : 0;
+      : null;
   const realized = performance.data?.realizedProfit ?? 0;
 
   if (performance.isLoading || !positions.length) return null;
@@ -37,9 +48,17 @@ export default function PortfolioInsight() {
       <Insight
         icon={<PieChart className="h-4 w-4" />}
         label="Maior posição"
-        value={`${largest?.asset.ticker} · ${formatPercent(concentration, 1)}`}
-        note="Participação sobre o valor atual da carteira."
-        tone={concentration > 35 ? "caution" : "default"}
+        value={
+          concentration === null
+            ? "Indisponível"
+            : `${largest?.asset.ticker} · ${formatPercent(concentration, 1)}`
+        }
+        note={
+          concentration === null
+            ? "A concentração exige preço atual em todas as posições."
+            : "Participação sobre o valor atual da carteira."
+        }
+        tone={concentration !== null && concentration > 35 ? "caution" : "default"}
       />
       <Insight
         icon={<TrendingUp className="h-4 w-4" />}
@@ -48,7 +67,7 @@ export default function PortfolioInsight() {
         note="Proventos, impostos e eventos corporativos não estão incluídos."
         tone="default"
       />
-      {concentration > 35 && (
+      {concentration !== null && concentration > 35 && (
         <div className="lg:col-span-3 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-xs leading-5 text-amber-800 dark:text-amber-200">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>

@@ -33,6 +33,39 @@ export function applyWatchlistChange(
   return Array.from(next);
 }
 
+export function hasValidPositionLedger<
+  TAsset extends { id: number },
+>(rows: Array<TransactionRow & { asset: TAsset }>) {
+  const ordered = [...rows].sort((left, right) => {
+    const leftTime = left.transaction.transactionDate
+      ? new Date(left.transaction.transactionDate).valueOf()
+      : 0;
+    const rightTime = right.transaction.transactionDate
+      ? new Date(right.transaction.transactionDate).valueOf()
+      : 0;
+    return (
+      leftTime - rightTime ||
+      (left.transaction.id ?? 0) - (right.transaction.id ?? 0)
+    );
+  });
+  const quantities = new Map<number, number>();
+  for (const row of ordered) {
+    const quantity = Number(row.transaction.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) return false;
+    const available = quantities.get(row.asset.id) ?? 0;
+    if (
+      row.transaction.transactionType === "SELL" &&
+      quantity > available + 1e-9
+    ) return false;
+    quantities.set(
+      row.asset.id,
+      available +
+        (row.transaction.transactionType === "BUY" ? quantity : -quantity)
+    );
+  }
+  return true;
+}
+
 export function summarizePortfolioRows<
   TAsset extends { id: number; lastPrice: NumericLike },
 >(rows: Array<TransactionRow & { asset: TAsset }>) {
@@ -45,6 +78,11 @@ export function summarizePortfolioPerformance<
   const toNumber = (value: NumericLike) => {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : 0;
+  };
+  const toNullableNumber = (value: NumericLike) => {
+    if (value === null || value === undefined || value === "") return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
   };
   // A position must always be reconstructed from the oldest operation forward.
   // The UI intentionally displays transactions newest-first, so never rely on
@@ -102,9 +140,11 @@ export function summarizePortfolioPerformance<
   const positions = Array.from(byAsset.values())
     .filter(item => item.quantity > 0)
     .map(item => {
-      const currentPrice = toNumber(item.asset.lastPrice);
-      const currentValue = currentPrice * item.quantity;
-      const profit = currentValue - item.invested;
+      const currentPrice = toNullableNumber(item.asset.lastPrice);
+      const currentValue =
+        currentPrice === null ? null : currentPrice * item.quantity;
+      const profit =
+        currentValue === null ? null : currentValue - item.invested;
       return {
         asset: item.asset,
         quantity: item.quantity,
@@ -112,7 +152,12 @@ export function summarizePortfolioPerformance<
         currentValue,
         profit,
         realizedProfit: item.realizedProfit,
-        returnPercent: item.invested ? (profit / item.invested) * 100 : 0,
+        returnPercent:
+          profit === null
+            ? null
+            : item.invested
+              ? (profit / item.invested) * 100
+              : 0,
       };
     });
 
