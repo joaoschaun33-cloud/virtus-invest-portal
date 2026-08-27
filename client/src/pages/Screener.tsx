@@ -40,19 +40,22 @@ export default function Screener() {
     | "earningsGrowth"
     | "revenueGrowth"
   >("change");
+  const optionalFilter = (value: string) => {
+    if (!value.trim()) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
   const input = useMemo(
     () => ({
       assetType: assetType || undefined,
-      minDividendYield: minDy ? Number(minDy) : undefined,
-      minRoe: minRoe ? Number(minRoe) : undefined,
-      maxPe: maxPe ? Number(maxPe) : undefined,
-      maxPb: maxPb ? Number(maxPb) : undefined,
-      minEbitda: minEbitda ? Number(minEbitda) : undefined,
-      maxNetDebt: maxNetDebt ? Number(maxNetDebt) : undefined,
-      minEarningsGrowth: minEarningsGrowth
-        ? Number(minEarningsGrowth)
-        : undefined,
-      minRevenueGrowth: minRevenueGrowth ? Number(minRevenueGrowth) : undefined,
+      minDividendYield: optionalFilter(minDy),
+      minRoe: optionalFilter(minRoe),
+      maxPe: optionalFilter(maxPe),
+      maxPb: optionalFilter(maxPb),
+      minEbitda: optionalFilter(minEbitda),
+      maxNetDebt: optionalFilter(maxNetDebt),
+      minEarningsGrowth: optionalFilter(minEarningsGrowth),
+      minRevenueGrowth: optionalFilter(minRevenueGrowth),
       sortBy,
     }),
     [
@@ -289,9 +292,10 @@ export default function Screener() {
                       />
                     </span>
                     <span>
-                      Fonte:{" "}
+                      Fundamentos:{" "}
                       {String(
-                        (asset as Record<string, unknown>).source ?? "catálogo"
+                        (asset as Record<string, unknown>).fundamentalsSource ??
+                          "procedência não exibível"
                       )}
                     </span>
                   </div>

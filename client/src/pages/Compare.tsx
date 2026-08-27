@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Plus, Scale, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Plus, Scale, X } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { AppTopBar, PageHeader, Panel } from "@/components/apex/ApexPrimitives";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/formatters";
 import { DataProvenance } from "@/components/DataProvenance";
 import { toast } from "sonner";
+import type { MarketDataSource } from "../../../shared/marketData";
 
 export default function Compare() {
   const initial = useMemo(() => {
@@ -56,6 +57,10 @@ export default function Compare() {
     numberValue(snapshot?.quote.changePercent)
   );
   const maxChange = Math.max(...allChanges.map(value => Math.abs(value)), 1);
+  const comparedClasses = new Set(
+    snapshots.map(snapshot => snapshot?.asset.assetType).filter(Boolean)
+  );
+  const mixedClasses = comparedClasses.size > 1;
 
   return (
     <DashboardLayout allowAnonymous>
@@ -121,6 +126,16 @@ export default function Compare() {
             </p>
           )}
         </Panel>
+        {mixedClasses && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-4 text-xs leading-5 text-amber-900 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Você está comparando classes diferentes. Preço, múltiplos e
+              distribuição de resultados não têm a mesma interpretação para
+              ações, FIIs, índices, ETFs ou criptoativos.
+            </p>
+          </div>
+        )}
         <div className="grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
           <Panel className="overflow-hidden">
             <div className="flex items-center gap-2 border-b border-border/60 px-5 py-4">
@@ -258,6 +273,30 @@ export default function Compare() {
                 </tbody>
               </table>
             </div>
+            {snapshots.length > 0 && (
+              <div className="grid gap-2 border-t border-border/60 bg-muted/20 p-4 sm:grid-cols-2">
+                {snapshots.map(snapshot =>
+                  snapshot ? (
+                    <div
+                      key={`fundamentals-source-${snapshot.asset.ticker}`}
+                      className="rounded-xl bg-background/60 p-3"
+                    >
+                      <p className="mb-2 text-[11px] font-semibold">
+                        {snapshot.asset.ticker} · fundamentos
+                      </p>
+                      <DataProvenance
+                        source={
+                          snapshot.fundamentalsMeta.source as MarketDataSource
+                        }
+                        asOf={snapshot.fundamentalsMeta.asOf}
+                        freshness={snapshot.fundamentalsMeta.freshness}
+                        compact
+                      />
+                    </div>
+                  ) : null
+                )}
+              </div>
+            )}
           </Panel>
         </div>
         <p className="mt-5 text-center text-[11px] leading-5 text-muted-foreground">

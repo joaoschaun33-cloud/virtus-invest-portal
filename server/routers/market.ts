@@ -33,6 +33,12 @@ import {
   updateAssetQuote,
 } from "../db";
 import { catalogQuoteFromAsset } from "../../shared/marketData";
+import {
+  compareNullableMetrics,
+  matchesMaximum,
+  matchesMinimum,
+  metricNumber,
+} from "../screenerMetrics";
 
 const asNumber = (value: unknown) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -47,7 +53,7 @@ const asNullableNumber = (value: unknown) => {
 };
 
 const dynamicMetric = (asset: unknown, key: string) =>
-  asNumber((asset as Record<string, unknown>)[key]);
+  metricNumber((asset as Record<string, unknown>)[key]);
 const quoteRefreshes = new Map<string, number>();
 const MIN_REFRESH_INTERVAL_MS = 12_000;
 
@@ -462,60 +468,77 @@ export const marketRouter = router({
               return fundamentals
                 ? {
                     ...asset,
-                    ...fundamentals,
+                    peRatio: fundamentals.peRatio ?? asset.peRatio,
+                    pbRatio: fundamentals.pbRatio ?? asset.pbRatio,
+                    dividendYield:
+                      fundamentals.dividendYield ?? asset.dividendYield,
+                    roe: fundamentals.roe ?? asset.roe,
+                    netMargin: fundamentals.netMargin ?? asset.netMargin,
+                    ebitda: fundamentals.ebitda,
+                    netDebt: fundamentals.netDebt,
+                    earningsGrowth: fundamentals.earningsGrowth,
+                    revenueGrowth: fundamentals.revenueGrowth,
+                    fundamentalsSource: fundamentals.source,
                     fundamentalsAsOf: fundamentals.asOf,
                   }
-                : asset;
+                : { ...asset, fundamentalsSource: null, fundamentalsAsOf: null };
             })
           )
-        : baseAssets;
+        : baseAssets.map(asset => ({
+            ...asset,
+            fundamentalsSource: null,
+            fundamentalsAsOf: null,
+          }));
       const filtered = assets.filter(asset => {
-        const pe = asNumber(asset.peRatio);
-        const pb = asNumber(asset.pbRatio);
-        const dy = asNumber(asset.dividendYield);
-        const roeValue = asNumber(asset.roe);
-        const margin = asNumber(asset.netMargin);
         const ebitda = dynamicMetric(asset, "ebitda");
         const netDebt = dynamicMetric(asset, "netDebt");
         const earningsGrowth = dynamicMetric(asset, "earningsGrowth");
         const revenueGrowth = dynamicMetric(asset, "revenueGrowth");
         return (
-          (input.minPe === undefined || pe >= input.minPe) &&
-          (input.maxPe === undefined || pe <= input.maxPe) &&
-          (input.minDividendYield === undefined ||
-            dy >= input.minDividendYield) &&
-          (input.minRoe === undefined || roeValue >= input.minRoe) &&
-          (input.maxPb === undefined || pb <= input.maxPb) &&
-          (input.minNetMargin === undefined || margin >= input.minNetMargin) &&
-          (input.minEbitda === undefined || ebitda >= input.minEbitda) &&
-          (input.maxNetDebt === undefined || netDebt <= input.maxNetDebt) &&
-          (input.minEarningsGrowth === undefined ||
-            earningsGrowth >= input.minEarningsGrowth) &&
-          (input.minRevenueGrowth === undefined ||
-            revenueGrowth >= input.minRevenueGrowth)
+          matchesMinimum(asset.peRatio, input.minPe) &&
+          matchesMaximum(asset.peRatio, input.maxPe) &&
+          matchesMinimum(asset.dividendYield, input.minDividendYield) &&
+          matchesMinimum(asset.roe, input.minRoe) &&
+          matchesMaximum(asset.pbRatio, input.maxPb) &&
+          matchesMinimum(asset.netMargin, input.minNetMargin) &&
+          matchesMinimum(ebitda, input.minEbitda) &&
+          matchesMaximum(netDebt, input.maxNetDebt) &&
+          matchesMinimum(earningsGrowth, input.minEarningsGrowth) &&
+          matchesMinimum(revenueGrowth, input.minRevenueGrowth)
         );
       });
       return filtered.sort((a, b) => {
         if (input.sortBy === "dividendYield")
-          return asNumber(b.dividendYield) - asNumber(a.dividendYield);
-        if (input.sortBy === "roe") return asNumber(b.roe) - asNumber(a.roe);
+          return compareNullableMetrics(a.dividendYield, b.dividendYield, "desc");
+        if (input.sortBy === "roe")
+          return compareNullableMetrics(a.roe, b.roe, "desc");
         if (input.sortBy === "volume")
-          return asNumber(b.dayVolume) - asNumber(a.dayVolume);
+          return compareNullableMetrics(a.dayVolume, b.dayVolume, "desc");
         if (input.sortBy === "pe")
-          return asNumber(a.peRatio) - asNumber(b.peRatio);
+          return compareNullableMetrics(a.peRatio, b.peRatio, "asc");
         if (input.sortBy === "ebitda")
-          return dynamicMetric(b, "ebitda") - dynamicMetric(a, "ebitda");
+          return compareNullableMetrics(
+            dynamicMetric(a, "ebitda"),
+            dynamicMetric(b, "ebitda"),
+            "desc"
+          );
         if (input.sortBy === "earningsGrowth")
-          return (
-            dynamicMetric(b, "earningsGrowth") -
-            dynamicMetric(a, "earningsGrowth")
+          return compareNullableMetrics(
+            dynamicMetric(a, "earningsGrowth"),
+            dynamicMetric(b, "earningsGrowth"),
+            "desc"
           );
         if (input.sortBy === "revenueGrowth")
-          return (
-            dynamicMetric(b, "revenueGrowth") -
-            dynamicMetric(a, "revenueGrowth")
+          return compareNullableMetrics(
+            dynamicMetric(a, "revenueGrowth"),
+            dynamicMetric(b, "revenueGrowth"),
+            "desc"
           );
-        return asNumber(b.changePercent) - asNumber(a.changePercent);
+        return compareNullableMetrics(
+          a.changePercent,
+          b.changePercent,
+          "desc"
+        );
       });
     }),
   compare: publicProcedure

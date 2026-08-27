@@ -10,6 +10,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import type { MarketDataSource } from "../../../shared/marketData";
 import { trackProductEvent } from "@/lib/analytics";
+import { optionalNumberValue } from "@/lib/formatters";
 
 const fieldLabels = {
   price: "Preço atual (R$)", eps: "LPA (R$)", pe: "P/L", bvps: "VPA (R$)",
@@ -19,7 +20,7 @@ const fieldLabels = {
 type Field = keyof typeof fieldLabels;
 type Fields = Record<Field, string>;
 const emptyFields: Fields = { price: "", eps: "", pe: "", bvps: "", dividend: "", growth: "", roe: "", margin: "", debtEbitda: "" };
-const number = (value: unknown) => { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; };
+const number = (value: unknown) => optionalNumberValue(value);
 const fieldNumber = (value: string) => { const parsed = Number(value.replace(",", ".")); return Number.isFinite(parsed) && value.trim() ? parsed : null; };
 const display = (value: number | null | undefined, digits = 2) => value === null || value === undefined ? "—" : value.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const money = (value: number | null) => value === null ? "Indefinido" : value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
