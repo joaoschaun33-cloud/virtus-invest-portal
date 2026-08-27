@@ -32,6 +32,7 @@ import { trpc } from "@/lib/trpc";
 import {
   formatCompact,
   formatDate,
+  formatMarketValue,
   formatPercent,
   formatPrice,
   formatRelativeDate,
@@ -256,12 +257,19 @@ export default function Home() {
                         {tickerLabels[asset.ticker] ?? asset.ticker}
                       </span>
                       <span className="text-xs font-semibold tabular-nums">
-                        {formatPrice(price, asset.currency)}
+                        {formatMarketValue(
+                          price,
+                          asset.assetType,
+                          asset.currency
+                        )}
                       </span>
                       <span
                         className={`text-[11px] font-semibold tabular-nums ${changeClass(change)}`}
                       >
-                        {optionalNumberValue(change) !== null && numberValue(change) >= 0 ? "+" : ""}
+                        {optionalNumberValue(change) !== null &&
+                        numberValue(change) >= 0
+                          ? "+"
+                          : ""}
                         {formatPercent(change)}
                       </span>
                     </Link>
@@ -410,20 +418,20 @@ export default function Home() {
 
         {marketQualityResolved &&
           (isDemo || isCatalogFallback || catalogAssets.length > 0) && (
-          <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-5 py-4 text-xs text-amber-800 dark:text-amber-200">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <span>
-                <strong>Cobertura de mercado identificada.</strong>{" "}
-                {realAssets > 0
-                  ? `${realAssets} de ${assets.length} ativos têm uma fonte ativa. ${catalogAssets.map(asset => asset.ticker).join(", ")} estão sem cobertura e não exibem valores.`
-                  : "Os ativos desta página estão sem cobertura de mercado no momento."}
+            <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-5 py-4 text-xs text-amber-800 dark:text-amber-200">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>
+                  <strong>Cobertura de mercado identificada.</strong>{" "}
+                  {realAssets > 0
+                    ? `${realAssets} de ${assets.length} ativos têm uma fonte ativa. ${catalogAssets.map(asset => asset.ticker).join(", ")} estão sem cobertura e não exibem valores.`
+                    : "Os ativos desta página estão sem cobertura de mercado no momento."}
+                </span>
+              </div>
+              <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-900 dark:text-amber-100">
+                {realAssets > 0 ? "Cobertura parcial" : "Dados indisponíveis"}
               </span>
             </div>
-            <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-900 dark:text-amber-100">
-              {realAssets > 0 ? "Cobertura parcial" : "Dados indisponíveis"}
-            </span>
-          </div>
           )}
 
         <section className="mt-8" aria-labelledby="painel-do-dia-title">
@@ -482,6 +490,7 @@ export default function Home() {
               value={metric.asset.price}
               change={optionalNumberValue(metric.asset.changePercent)}
               currency={metric.currency}
+              assetType={metric.asset.assetType}
               note={metric.note}
               accent={metric.accent}
               footer={
@@ -579,15 +588,41 @@ function GuideContinuation() {
   const state = useMemo(() => {
     try {
       const goal = localStorage.getItem("virtus-guide-goal-v1");
-      const seen = JSON.parse(localStorage.getItem("virtus-guide-progress-v1") ?? "[]") as string[];
-      const quizzes = JSON.parse(localStorage.getItem("virtus-guide-quizzes-v1") ?? "[]") as string[];
+      const seen = JSON.parse(
+        localStorage.getItem("virtus-guide-progress-v1") ?? "[]"
+      ) as string[];
+      const quizzes = JSON.parse(
+        localStorage.getItem("virtus-guide-quizzes-v1") ?? "[]"
+      ) as string[];
       if (!goal && !seen.length) return null;
       const total = 5;
       return { completed: quizzes.length, visited: seen.length, total };
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, []);
   if (!state || state.completed >= state.total) return null;
-  return <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-primary/[.045] p-5"><div><p className="text-[11px] font-semibold uppercase tracking-[.14em] text-primary">Sua jornada</p><h2 className="mt-1 text-sm font-semibold">Continue o Guia do iniciante</h2><p className="mt-1 text-xs text-muted-foreground">{state.completed} verificações concluídas · {state.visited} módulos visitados</p></div><Link href="/guia"><Button variant="outline" className="rounded-xl">Continuar de onde parei <ArrowRight className="ml-2 h-4 w-4" /></Button></Link></section>;
+  return (
+    <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-primary/[.045] p-5">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[.14em] text-primary">
+          Sua jornada
+        </p>
+        <h2 className="mt-1 text-sm font-semibold">
+          Continue o Guia do iniciante
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {state.completed} verificações concluídas · {state.visited} módulos
+          visitados
+        </p>
+      </div>
+      <Link href="/guia">
+        <Button variant="outline" className="rounded-xl">
+          Continuar de onde parei <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </Link>
+    </section>
+  );
 }
 
 function MarketList({
@@ -620,7 +655,11 @@ function MarketList({
             <div className="flex items-center gap-2">
               {!volume && (
                 <span className="text-[11px] font-medium tabular-nums text-foreground">
-                  {formatPrice(asset.price, asset.currency)}
+                  {formatMarketValue(
+                    asset.price,
+                    asset.assetType,
+                    asset.currency
+                  )}
                 </span>
               )}
               <span

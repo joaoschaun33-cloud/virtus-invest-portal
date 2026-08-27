@@ -11,7 +11,12 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
-import { formatPercent, formatPrice, optionalNumberValue } from "@/lib/formatters";
+import {
+  formatMarketValue,
+  formatPercent,
+  formatPrice,
+  optionalNumberValue,
+} from "@/lib/formatters";
 import { VirtusBrand } from "@/components/VirtusBrand";
 
 export function Panel({
@@ -127,6 +132,7 @@ export function MetricCard({
   value,
   change,
   currency,
+  assetType,
   note,
   accent = "default",
   footer,
@@ -135,6 +141,7 @@ export function MetricCard({
   value: unknown;
   change?: number | null;
   currency?: string;
+  assetType?: string;
   note?: string;
   accent?: "default" | "blue" | "green" | "orange";
   footer?: React.ReactNode;
@@ -175,7 +182,11 @@ export function MetricCard({
         )}
       </div>
       <p className="mt-4 text-2xl font-semibold tracking-[-0.04em]">
-        {currency ? formatPrice(value, currency) : String(value)}
+        {assetType
+          ? formatMarketValue(value, assetType, currency)
+          : currency
+            ? formatPrice(value, currency)
+            : String(value)}
       </p>
       {note && <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>}
       {footer && <div className="mt-3">{footer}</div>}
@@ -218,8 +229,8 @@ export function AssetLink({
             numericChange === null
               ? "text-muted-foreground"
               : numericChange >= 0
-              ? "text-emerald-700 dark:text-emerald-300"
-              : "text-rose-700 dark:text-rose-300"
+                ? "text-emerald-700 dark:text-emerald-300"
+                : "text-rose-700 dark:text-rose-300"
           )}
         >
           {numericChange !== null && numericChange >= 0 ? "+" : ""}

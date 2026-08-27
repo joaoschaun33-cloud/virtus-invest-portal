@@ -131,30 +131,67 @@ export default function Trust() {
               significa tempo real nem disponibilidade uniforme.
             </p>
           </div>
-          <div className="grid divide-y divide-border/60 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          <div className="grid divide-y divide-border/60 sm:grid-cols-5 sm:divide-x sm:divide-y-0">
             <CoverageMetric
               label="Cobertura válida"
-              value={coverage.isLoading ? "…" : `${coverage.data?.coveragePercent ?? 0}%`}
+              value={
+                coverage.isLoading
+                  ? "…"
+                  : `${coverage.data?.coveragePercent ?? 0}%`
+              }
             />
             <CoverageMetric
               label="Com fonte ativa"
-              value={coverage.isLoading ? "…" : String(coverage.data?.available ?? 0)}
+              value={
+                coverage.isLoading ? "…" : String(coverage.data?.available ?? 0)
+              }
             />
             <CoverageMetric
               label="Indisponíveis"
-              value={coverage.isLoading ? "…" : String(coverage.data?.unavailable ?? 0)}
+              value={
+                coverage.isLoading
+                  ? "…"
+                  : String(coverage.data?.unavailable ?? 0)
+              }
             />
             <CoverageMetric
               label="Demonstração"
-              value={coverage.isLoading ? "…" : String(coverage.data?.demonstration ?? 0)}
+              value={
+                coverage.isLoading
+                  ? "…"
+                  : String(coverage.data?.demonstration ?? 0)
+              }
+            />
+            <CoverageMetric
+              label="Referência anterior"
+              value={
+                coverage.isLoading
+                  ? "…"
+                  : String(coverage.data?.behindLatest ?? 0)
+              }
             />
           </div>
           {coverage.data && (
             <div className="border-t border-border/60 bg-muted/20 px-5 py-3 text-[11px] text-muted-foreground">
-              Fontes observadas: {Object.entries(coverage.data.bySource)
+              Fontes observadas:{" "}
+              {Object.entries(coverage.data.bySource)
                 .map(([source, count]) => `${source}: ${count}`)
-                .join(" · ")} · verificado em{" "}
-              {coverage.data.checkedAt.toLocaleString("pt-BR")}
+                .join(" · ")}{" "}
+              · verificado em {coverage.data.checkedAt.toLocaleString("pt-BR")}
+              {coverage.data.oldestAsOf && (
+                <>
+                  {" "}
+                  · referência mais antiga:{" "}
+                  {coverage.data.oldestAsOf.toLocaleDateString("pt-BR")}
+                </>
+              )}
+              {coverage.data.latestB3AsOf && (
+                <>
+                  {" "}
+                  · fechamento B3 mais recente:{" "}
+                  {coverage.data.latestB3AsOf.toLocaleDateString("pt-BR")}
+                </>
+              )}
             </div>
           )}
         </Panel>

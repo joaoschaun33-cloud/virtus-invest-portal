@@ -21,6 +21,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import {
   formatCompact,
+  formatMarketValue,
   formatPercent,
   formatPrice,
   numberValue,
@@ -236,7 +237,11 @@ export default function Markets() {
                       </Link>
                       <div>
                         <p className="text-sm font-semibold">
-                          {formatPrice(price, asset.currency)}
+                          {formatMarketValue(
+                            price,
+                            asset.assetType,
+                            asset.currency
+                          )}
                         </p>
                         <DataProvenance
                           source={live?.source ?? asset.source}
@@ -248,7 +253,9 @@ export default function Markets() {
                       <p
                         className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}
                       >
-                        {numericChange !== null && numericChange >= 0 ? "+" : ""}
+                        {numericChange !== null && numericChange >= 0
+                          ? "+"
+                          : ""}
                         {formatPercent(change)}
                       </p>
                       <p className="text-sm text-muted-foreground">

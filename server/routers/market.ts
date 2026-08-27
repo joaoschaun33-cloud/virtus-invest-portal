@@ -18,7 +18,11 @@ import { fetchB3IssuerIdentity } from "../b3ReferenceData";
 import { fetchCvmFinancialStatements } from "../cvmFinancialData";
 import { deriveFinancialMetrics } from "../financialMetrics";
 import { getStoredCvmFinancialStatements } from "../cvmFinancialRepository";
-import { getAssetSnapshot, getStoredAssetSnapshot, type AssetSnapshot } from "../assetSnapshot";
+import {
+  getAssetSnapshot,
+  getStoredAssetSnapshot,
+  type AssetSnapshot,
+} from "../assetSnapshot";
 import {
   getAssetByTicker,
   getQuotes,
@@ -99,12 +103,15 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
     ? { ...liveQuote, freshness: "delayed" as const, isDemo: false }
     : catalogQuoteFromAsset(asset);
   const quoteRows = liveCandles.length ? liveCandles : fallbackQuotes;
-  const historySource: string = liveCandles[0]?.source ??
+  const historySource: string =
+    liveCandles[0]?.source ??
     (fallbackQuotes[0] && "source" in fallbackQuotes[0]
       ? String(fallbackQuotes[0].source)
       : "catalog");
   const hasStoredNonCatalogHistory =
-    !liveCandles.length && fallbackQuotes.length > 0 && historySource !== "catalog";
+    !liveCandles.length &&
+    fallbackQuotes.length > 0 &&
+    historySource !== "catalog";
   const closes = quoteRows.map(quote =>
     asNumber("close" in quote ? quote.close : 0)
   );
@@ -156,7 +163,8 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
       freshness: liveFundamentals ? ("close" as const) : ("demo" as const),
       isDemo: !liveFundamentals,
     },
-    isDemo: !liveCandles.length && !liveFundamentals && !hasStoredNonCatalogHistory,
+    isDemo:
+      !liveCandles.length && !liveFundamentals && !hasStoredNonCatalogHistory,
   };
 }
 
@@ -188,10 +196,13 @@ export const marketRouter = router({
   }),
   coverageSummary: publicProcedure.query(async () => {
     const snapshots = await listAssetsWithLiveQuotes();
-    const bySource = snapshots.reduce<Record<string, number>>((summary, item) => {
-      summary[item.source] = (summary[item.source] ?? 0) + 1;
-      return summary;
-    }, {});
+    const bySource = snapshots.reduce<Record<string, number>>(
+      (summary, item) => {
+        summary[item.source] = (summary[item.source] ?? 0) + 1;
+        return summary;
+      },
+      {}
+    );
     const available = snapshots.filter(
       item => item.price !== null && item.source !== "catalog"
     ).length;
@@ -200,21 +211,40 @@ export const marketRouter = router({
     const stale = snapshots.filter(item => item.freshness === "stale").length;
     const timestamps = snapshots
       .map(item => new Date(item.fetchedAt).valueOf())
-      .filter(timestamp =>
-        Number.isFinite(timestamp) && timestamp > Date.UTC(2000, 0, 1)
+      .filter(
+        timestamp =>
+          Number.isFinite(timestamp) && timestamp > Date.UTC(2000, 0, 1)
       );
+    const b3Timestamps = snapshots
+      .filter(item => item.source === "b3" && item.price !== null)
+      .map(item => new Date(item.fetchedAt).valueOf())
+      .filter(Number.isFinite);
+    const latestB3Timestamp = b3Timestamps.length
+      ? Math.max(...b3Timestamps)
+      : null;
+    const behindLatest =
+      latestB3Timestamp === null
+        ? 0
+        : snapshots.filter(item => {
+            if (item.source !== "b3" || item.price === null) return false;
+            const timestamp = new Date(item.fetchedAt).valueOf();
+            return Number.isFinite(timestamp) && timestamp < latestB3Timestamp;
+          }).length;
     return {
       total: snapshots.length,
       available,
       unavailable,
       demonstration,
       stale,
+      behindLatest,
       coveragePercent: snapshots.length
         ? Math.round((available / snapshots.length) * 100)
         : 0,
       bySource,
       oldestAsOf: timestamps.length ? new Date(Math.min(...timestamps)) : null,
       newestAsOf: timestamps.length ? new Date(Math.max(...timestamps)) : null,
+      latestB3AsOf:
+        latestB3Timestamp === null ? null : new Date(latestB3Timestamp),
       checkedAt: new Date(),
     };
   }),
@@ -246,7 +276,10 @@ export const marketRouter = router({
     .query(async ({ input }) => {
       const asset = await getAssetByTicker(input.ticker);
       if (!asset) return null;
-      const stored = await getStoredCvmFinancialStatements(asset.id, asset.ticker);
+      const stored = await getStoredCvmFinancialStatements(
+        asset.id,
+        asset.ticker
+      );
       if (stored)
         return { ...stored, derivedMetrics: deriveFinancialMetrics(stored) };
       const b3 = await fetchB3IssuerIdentity(asset.ticker, asset.assetType);
@@ -261,7 +294,10 @@ export const marketRouter = router({
       if (!asset) return null;
       const b3 = await fetchB3IssuerIdentity(asset.ticker, asset.assetType);
       if (!b3) return null;
-      const statement = await fetchCvmFinancialStatements(asset.ticker, b3.cnpj);
+      const statement = await fetchCvmFinancialStatements(
+        asset.ticker,
+        b3.cnpj
+      );
       return statement
         ? { ...statement, derivedMetrics: deriveFinancialMetrics(statement) }
         : null;
@@ -301,34 +337,44 @@ export const marketRouter = router({
       if (!input?.assetId) {
         const official = await fetchOfficialNews();
         if (!official.length)
-          return stored.filter(
-            item =>
-              item.sourceName !== "Apex Brief" &&
-              item.sourceName !== "catalog" &&
-              matchesCategory(item.category)
-          ).map(item => ({ ...item, relatedTickers: [] as string[] }));
-        return official.map((item, index) => ({
-          id: -(index + 1),
-          assetId: null,
-          title: item.headline,
-          summary: item.summary,
-          sourceName: item.sourceName,
-          url: item.url,
-          category: item.category,
-          relatedTickers: item.relatedTickers,
-          publishedAt: item.publishedAt,
-          createdAt: item.publishedAt,
-        })).filter(item => matchesCategory(item.category));
+          return stored
+            .filter(
+              item =>
+                item.sourceName !== "Apex Brief" &&
+                item.sourceName !== "catalog" &&
+                matchesCategory(item.category)
+            )
+            .map(item => ({ ...item, relatedTickers: [] as string[] }));
+        return official
+          .map((item, index) => ({
+            id: -(index + 1),
+            assetId: null,
+            title: item.headline,
+            summary: item.summary,
+            sourceName: item.sourceName,
+            url: item.url,
+            category: item.category,
+            relatedTickers: item.relatedTickers,
+            publishedAt: item.publishedAt,
+            createdAt: item.publishedAt,
+          }))
+          .filter(item => matchesCategory(item.category));
       }
       const asset = await (async () => {
         const matches = await listAssets();
         return matches.find(item => item.id === input.assetId);
       })();
       if (!asset)
-        return stored.map(item => ({ ...item, relatedTickers: [] as string[] }));
+        return stored.map(item => ({
+          ...item,
+          relatedTickers: [] as string[],
+        }));
       const live = await fetchProviderNews(asset.ticker);
       if (!live.length)
-        return stored.map(item => ({ ...item, relatedTickers: [] as string[] }));
+        return stored.map(item => ({
+          ...item,
+          relatedTickers: [] as string[],
+        }));
       return live.map((item, index) => ({
         id: -(index + 1),
         assetId: asset.id,

@@ -26,6 +26,7 @@ import { trpc } from "@/lib/trpc";
 import {
   formatCompact,
   formatDate,
+  formatMarketValue,
   formatPercent,
   formatPrice,
   numberValue,
@@ -231,7 +232,11 @@ export default function AssetDetail() {
               <div>
                 <div className="flex items-center gap-3">
                   <span className="text-3xl font-semibold tracking-[-.05em]">
-                    {formatPrice(lastPrice, asset?.currency ?? "BRL")}
+                    {formatMarketValue(
+                      lastPrice,
+                      asset?.assetType ?? "STOCK",
+                      asset?.currency ?? "BRL"
+                    )}
                   </span>
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lastChange === null ? "bg-muted text-muted-foreground" : lastChange >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/10 text-rose-600 dark:text-rose-300"}`}
@@ -337,7 +342,9 @@ export default function AssetDetail() {
                   <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-primary">
                     Demonstrações oficiais
                   </p>
-                  <h2 className="mt-2 section-heading">Números reportados à CVM</h2>
+                  <h2 className="mt-2 section-heading">
+                    Números reportados à CVM
+                  </h2>
                 </div>
                 <Scale className="h-5 w-5 text-primary" />
               </div>
@@ -349,13 +356,24 @@ export default function AssetDetail() {
                 <>
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     {[
-                      ["Receita acumulada", statementsQuery.data.values.revenue],
+                      [
+                        "Receita acumulada",
+                        statementsQuery.data.values.revenue,
+                      ],
                       ["Lucro líquido", statementsQuery.data.values.netIncome],
                       ["Ativo total", statementsQuery.data.values.totalAssets],
-                      ["Patrimônio líquido", statementsQuery.data.values.equity],
+                      [
+                        "Patrimônio líquido",
+                        statementsQuery.data.values.equity,
+                      ],
                     ].map(([label, value]) => (
-                      <div key={String(label)} className="rounded-xl bg-background/55 p-3">
-                        <p className="text-[11px] text-muted-foreground">{String(label)}</p>
+                      <div
+                        key={String(label)}
+                        className="rounded-xl bg-background/55 p-3"
+                      >
+                        <p className="text-[11px] text-muted-foreground">
+                          {String(label)}
+                        </p>
                         <p className="mt-2 text-sm font-semibold">
                           {value === null ? "—" : formatPrice(value, "BRL")}
                         </p>
@@ -394,7 +412,9 @@ export default function AssetDetail() {
                             <div className="mt-3 border-t border-border/50 pt-3 text-[10px] leading-4 text-muted-foreground">
                               <p>{metric.interpretation}</p>
                               <p className="mt-1">
-                                <span className="font-semibold text-foreground">Fórmula:</span>{" "}
+                                <span className="font-semibold text-foreground">
+                                  Fórmula:
+                                </span>{" "}
                                 {metric.formula}.
                               </p>
                               {metric.limitation && (
@@ -409,13 +429,19 @@ export default function AssetDetail() {
                     </div>
                   )}
                   <p className="mt-4 text-[10px] leading-4 text-muted-foreground">
-                    {statementsQuery.data.filing} consolidado · referência {formatDate(
-                      statementsQuery.data.referenceDate,
-                      { day: "2-digit", month: "short", year: "numeric" }
-                    )} · receita e resultado acumulados desde {formatDate(
-                      statementsQuery.data.periodStart,
-                      { day: "2-digit", month: "short", year: "numeric" }
-                    )}. Valores convertidos da escala declarada para reais.
+                    {statementsQuery.data.filing} consolidado · referência{" "}
+                    {formatDate(statementsQuery.data.referenceDate, {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}{" "}
+                    · receita e resultado acumulados desde{" "}
+                    {formatDate(statementsQuery.data.periodStart, {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                    . Valores convertidos da escala declarada para reais.
                   </p>
                   <a
                     href={statementsQuery.data.sourceUrl}
@@ -510,42 +536,45 @@ export default function AssetDetail() {
             </Panel>
           </div>
         </div>
-        {statementsQuery.data && statementsQuery.data.quarterlyHistory.length >= 2 && (
-          <Panel className="mt-6 overflow-hidden">
-            <div className="border-b border-border/60 px-5 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-primary">
-                Evolução financeira
-              </p>
-              <h2 className="mt-2 section-heading">Receita, lucro e margem por trimestre</h2>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Períodos trimestrais e comparativos explicitamente publicados pela companhia no arquivo {statementsQuery.data.filing} consolidado da CVM.
-              </p>
-            </div>
-            <div className="p-4 sm:p-5">
-              <FinancialHistoryChart data={statementsQuery.data.quarterlyHistory} />
-              <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
-                Barras em reais; a linha representa a margem líquida calculada pela Virtus. Valores acumulados no ano não são somados nem tratados como trimestre.
-              </p>
-            </div>
-          </Panel>
-        )}
+        {statementsQuery.data &&
+          statementsQuery.data.quarterlyHistory.length >= 2 && (
+            <Panel className="mt-6 overflow-hidden">
+              <div className="border-b border-border/60 px-5 py-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-primary">
+                  Evolução financeira
+                </p>
+                <h2 className="mt-2 section-heading">
+                  Receita, lucro e margem por trimestre
+                </h2>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Períodos trimestrais e comparativos explicitamente publicados
+                  pela companhia no arquivo {statementsQuery.data.filing}{" "}
+                  consolidado da CVM.
+                </p>
+              </div>
+              <div className="p-4 sm:p-5">
+                <FinancialHistoryChart
+                  data={statementsQuery.data.quarterlyHistory}
+                />
+                <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+                  Barras em reais; a linha representa a margem líquida calculada
+                  pela Virtus. Valores acumulados no ano não são somados nem
+                  tratados como trimestre.
+                </p>
+              </div>
+            </Panel>
+          )}
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="metric-card">
             <p className="text-xs text-muted-foreground">Abertura</p>
             <p className="mt-2 text-xl font-semibold">
-              {formatPrice(
-                snapshot?.quote.open,
-                asset?.currency ?? "BRL"
-              )}
+              {formatPrice(snapshot?.quote.open, asset?.currency ?? "BRL")}
             </p>
           </div>
           <div className="metric-card">
             <p className="text-xs text-muted-foreground">Máxima da cotação</p>
             <p className="mt-2 text-xl font-semibold">
-              {formatPrice(
-                snapshot?.quote.high,
-                asset?.currency ?? "BRL"
-              )}
+              {formatPrice(snapshot?.quote.high, asset?.currency ?? "BRL")}
             </p>
           </div>
           <div className="metric-card">

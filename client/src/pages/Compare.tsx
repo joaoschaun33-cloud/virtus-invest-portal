@@ -6,7 +6,12 @@ import { AppTopBar, PageHeader, Panel } from "@/components/apex/ApexPrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { formatPercent, formatPrice, numberValue, optionalNumberValue } from "@/lib/formatters";
+import {
+  formatMarketValue,
+  formatPercent,
+  numberValue,
+  optionalNumberValue,
+} from "@/lib/formatters";
 import { DataProvenance } from "@/components/DataProvenance";
 import { toast } from "sonner";
 
@@ -145,7 +150,9 @@ export default function Compare() {
               {snapshots.map(snapshot => {
                 if (!snapshot) return null;
                 const asset = snapshot.asset;
-                const change = optionalNumberValue(snapshot.quote.changePercent);
+                const change = optionalNumberValue(
+                  snapshot.quote.changePercent
+                );
                 const ratio = Math.min(
                   100,
                   ((change === null ? 0 : Math.abs(change)) / maxChange) * 100
@@ -175,7 +182,11 @@ export default function Compare() {
                     <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
                       <span>{asset.name}</span>
                       <span>
-                        {formatPrice(snapshot.quote.price, asset.currency)}
+                        {formatMarketValue(
+                          snapshot.quote.price,
+                          asset.assetType,
+                          asset.currency
+                        )}
                       </span>
                     </div>
                     <div className="mt-2">
