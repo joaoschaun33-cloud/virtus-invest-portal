@@ -22,15 +22,16 @@ foreach ($job in $jobs) {
   $exists = $null -ne (& $gcloud scheduler jobs describe $job.Name --location=$Region --project=$ProjectId 2>$null)
   if ($exists) {
     & $gcloud scheduler jobs update http $job.Name `
-      --location=$Region --project=$ProjectId --schedule=$job.Schedule `
+      --location=$Region --project=$ProjectId --schedule="$($job.Schedule)" `
       --time-zone="America/Bahia" --uri=$uri --http-method=POST `
       --update-headers=$headers --message-body="{}" --attempt-deadline=300s `
       --quiet --format=none
   } else {
     & $gcloud scheduler jobs create http $job.Name `
-      --location=$Region --project=$ProjectId --schedule=$job.Schedule `
+      --location=$Region --project=$ProjectId --schedule="$($job.Schedule)" `
       --time-zone="America/Bahia" --uri=$uri --http-method=POST `
       --headers=$headers --message-body="{}" --attempt-deadline=300s `
       --quiet --format=none
   }
+  if ($LASTEXITCODE -ne 0) { throw "Falha ao configurar o agendamento $($job.Name)." }
 }
