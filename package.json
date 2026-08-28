@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:load": "tsx scripts/load-smoke.ts",
     "test:official-sources": "tsx scripts/check-official-sources.ts",
+    "test:analytics:production": "tsx scripts/validate-consent-analytics.ts",
     "ingest:cvm-financials": "tsx scripts/ingest-cvm-financials.ts",
     "seed:b3-indexes": "tsx scripts/seed-b3-indexes.ts",
     "ingest:b3-cotahist": "tsx scripts/ingest-b3-cotahist.ts",
