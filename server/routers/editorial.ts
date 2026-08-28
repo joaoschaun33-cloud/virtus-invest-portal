@@ -5,6 +5,7 @@ import {
   enqueueEditorialDraft,
   listEditorialDrafts,
   recordQueuedEditorialPublication,
+  recordQueuedEditorialCorrection,
   rejectQueuedEditorialDraft,
 } from "../editorialQueue";
 import { getEditorialOperationState, setEditorialOperationState } from "../editorialControl";
@@ -87,4 +88,13 @@ export const editorialRouter = router({
         url: input.url,
       })
     ),
+  recordCorrection: adminProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      kind: z.enum(["minor", "material", "retraction"]),
+      reason: z.string().trim().min(3).max(1_000),
+      correctionText: z.string().trim().min(10).max(5_000),
+      correctionUrl: z.string().url().max(2_000).optional(),
+    }))
+    .mutation(({ ctx, input }) => recordQueuedEditorialCorrection(input.id, { ...input, createdBy: reviewerName(ctx.user) })),
 });

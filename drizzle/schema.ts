@@ -234,6 +234,26 @@ export const editorialDrafts = mysqlTable(
 
 export type EditorialDraftRow = typeof editorialDrafts.$inferSelect;
 
+/** Append-only record of corrections made after external publication. */
+export const editorialCorrections = mysqlTable(
+  "editorialCorrections",
+  {
+    id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+    draftId: varchar("draftId", { length: 36 }).notNull(),
+    kind: mysqlEnum("kind", ["minor", "material", "retraction"]).notNull(),
+    reason: text("reason").notNull(),
+    correctionText: text("correctionText").notNull(),
+    correctionUrl: text("correctionUrl"),
+    createdBy: varchar("createdBy", { length: 160 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    draftCreatedIndex: index("editorial_corrections_draft_created_idx").on(table.draftId, table.createdAt),
+  })
+);
+
+export type EditorialCorrection = typeof editorialCorrections.$inferSelect;
+
 /** Persistent kill switch for editorial generation and distribution. */
 export const editorialOperations = mysqlTable("editorialOperations", {
   id: int("id").primaryKey(),

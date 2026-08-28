@@ -57,6 +57,13 @@
       "when": 1787929359831,
       "tag": "0007_busy_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787958809138,
+      "tag": "0008_lethal_bug",
+      "breakpoints": true
     }
   ]
 }

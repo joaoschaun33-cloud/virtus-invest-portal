@@ -1,7 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
-import { editorialDrafts, type EditorialDraftRow } from "../drizzle/schema";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { editorialCorrections, editorialDrafts, type EditorialDraftRow } from "../drizzle/schema";
 import { getDb } from "./db";
 import { ensureEditorialOperationActive } from "./editorialControl";
+import { setEditorialOperationState } from "./editorialControl";
+import { correctionRequiresPause, validateEditorialCorrection, type EditorialCorrectionKind } from "./editorialCorrection";
 import {
   approveEditorialDraft,
   createEditorialDraft,
@@ -99,7 +101,43 @@ export async function listEditorialDrafts(input?: {
     .where(input?.status ? eq(editorialDrafts.status, input.status) : undefined)
     .orderBy(desc(editorialDrafts.createdAt))
     .limit(Math.max(1, Math.min(input?.limit ?? 50, 100)));
-  return rows.map(editorialRowToDraft);
+  const corrections = rows.length ? await db.select().from(editorialCorrections).where(inArray(editorialCorrections.draftId, rows.map(row => row.id))).orderBy(desc(editorialCorrections.createdAt)) : [];
+  return rows.map(row => ({
+    ...editorialRowToDraft(row),
+    corrections: corrections.filter(correction => correction.draftId === row.id).map(correction => ({
+      id: correction.id,
+      kind: correction.kind,
+      reason: correction.reason,
+      correctionText: correction.correctionText,
+      correctionUrl: correction.correctionUrl ?? undefined,
+      createdBy: correction.createdBy,
+      createdAt: correction.createdAt.toISOString(),
+    })),
+  }));
+}
+
+export async function recordQueuedEditorialCorrection(id: string, input: {
+  kind: EditorialCorrectionKind;
+  reason: string;
+  correctionText: string;
+  correctionUrl?: string;
+  createdBy: string;
+}) {
+  const validated = validateEditorialCorrection(input);
+  const { db, row } = await getEditorialRow(id);
+  if (row.status !== "published") throw new Error("Somente uma publicação registrada pode receber correção.");
+  if (correctionRequiresPause(validated.kind)) {
+    await setEditorialOperationState({ paused: true, reason: `Correção ${validated.kind === "retraction" ? "com retirada" : "material"}: ${validated.reason}`, updatedBy: input.createdBy });
+  }
+  await db.insert(editorialCorrections).values({
+    draftId: id,
+    kind: validated.kind,
+    reason: validated.reason,
+    correctionText: validated.correctionText,
+    correctionUrl: validated.correctionUrl,
+    createdBy: input.createdBy,
+  });
+  return { recorded: true, operationPaused: correctionRequiresPause(validated.kind) };
 }
 
 async function getEditorialRow(id: string) {
