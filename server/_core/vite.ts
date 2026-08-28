@@ -68,7 +68,7 @@ export function serveStatic(app: Express) {
     res
       .type("text/plain")
       .send(
-        `User-agent: *\nAllow: /\nDisallow: /portfolio\nDisallow: /alerts\n\nSitemap: ${origin}/sitemap.xml\n`
+        `User-agent: *\nAllow: /\nDisallow: /portfolio\nDisallow: /alerts\nDisallow: /editorial\n\nSitemap: ${origin}/sitemap.xml\n`
       );
   });
 

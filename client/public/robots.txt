@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /portfolio
 Disallow: /alerts
+Disallow: /editorial
 
 Sitemap: https://www.virtusinvestimentos.com.br/sitemap.xml

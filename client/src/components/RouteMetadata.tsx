@@ -55,6 +55,11 @@ const metadata: Record<
     description: "Configure e acompanhe alertas pessoais de mercado.",
     noIndex: true,
   },
+  "/editorial": {
+    title: "Operação editorial",
+    description: "Fila administrativa de revisão editorial do Virtus.",
+    noIndex: true,
+  },
   "/trust": {
     title: "Confiança e dados",
     description:
