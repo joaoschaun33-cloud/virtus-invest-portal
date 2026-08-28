@@ -4,6 +4,7 @@ import {
   CONSENT_KEY,
   type CookieConsentValue,
 } from "@/components/CookieConsent";
+import { recordConsentedBetaSession } from "@/lib/retentionMetrics";
 
 const measurementId = import.meta.env.VITE_ANALYTICS_ID as string | undefined;
 
@@ -22,6 +23,7 @@ function enableAnalytics() {
   if (document.querySelector("script[data-virtus-analytics]")) return;
   window.gtag("js", new Date());
   window.gtag("config", measurementId, { anonymize_ip: true });
+  recordConsentedBetaSession();
   const script = document.createElement("script");
   script.async = true;
   script.dataset.virtusAnalytics = "true";

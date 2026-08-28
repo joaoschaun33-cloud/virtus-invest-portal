@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   ArrowLeft,
@@ -35,6 +35,7 @@ import {
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
 import { DataProvenance } from "@/components/DataProvenance";
 import { toast } from "sonner";
+import { trackProductEvent } from "@/lib/analytics";
 
 const periods = ["1D", "1W", "1M", "3M", "1Y", "MAX"];
 
@@ -78,6 +79,12 @@ export default function AssetDetail() {
   const localWatchlist = useLocalWatchlist();
   const snapshot = snapshotQuery.data;
   const asset = snapshot?.asset;
+  const trackedTicker = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!snapshot || trackedTicker.current === snapshot.asset.ticker) return;
+    trackedTicker.current = snapshot.asset.ticker;
+    trackProductEvent("asset_detail_loaded", { ticker: snapshot.asset.ticker, asset_type: snapshot.asset.assetType, source: snapshot.quote.source });
+  }, [snapshot]);
   const isServerFavorite = Boolean(
     asset && watchlistQuery.data?.some(item => item.asset.id === asset.id)
   );

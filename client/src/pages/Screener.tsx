@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
 import { formatPercent, formatPrice, numberValue } from "@/lib/formatters";
+import { trackProductEvent } from "@/lib/analytics";
 
 export default function Screener() {
   const [assetType, setAssetType] = useState("Ação");
@@ -247,6 +248,7 @@ export default function Screener() {
                 <Link
                   key={asset.id}
                   href={`/asset/${encodeURIComponent(asset.ticker)}`}
+                  onClick={() => trackProductEvent("screener_result_opened", { ticker: asset.ticker, asset_type: asset.assetType })}
                   className="grid gap-3 px-4 py-4 transition hover:bg-accent/50 md:grid-cols-[1.4fr_repeat(5,1fr)] md:items-center md:gap-4 md:px-5"
                 >
                   <div>

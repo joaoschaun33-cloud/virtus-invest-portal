@@ -24,4 +24,10 @@ describe("trackProductEvent", () => {
       goal: "investir",
     });
   });
+
+  it("drops parameters outside the event privacy allowlist", () => {
+    storage.set("virtus-cookie-consent-v1", "analytics");
+    trackProductEvent("portfolio_exported", { format: "csv", position_count: 3, total_value: 99999 });
+    expect(window.gtag).toHaveBeenCalledWith("event", "portfolio_exported", { format: "csv", position_count: 3 });
+  });
 });

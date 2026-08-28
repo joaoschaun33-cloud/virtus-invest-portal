@@ -24,6 +24,7 @@ import { trpc } from "@/lib/trpc";
 import { formatPrice, formatRelativeDate } from "@/lib/formatters";
 import AuthAccessOptions from "@/components/AuthAccessOptions";
 import { toast } from "sonner";
+import { trackProductEvent } from "@/lib/analytics";
 
 export default function Alerts() {
   const { user } = useAuth();
@@ -40,6 +41,7 @@ export default function Alerts() {
         return;
       }
       void alertsQuery.refetch();
+      trackProductEvent("alert_created", { condition, email_enabled: preferenceQuery.data?.emailAlerts !== 0 });
       toast.success("Alerta criado.");
     },
     onError: error =>

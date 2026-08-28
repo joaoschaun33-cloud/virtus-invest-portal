@@ -49,6 +49,7 @@ import {
   parsePortfolioFile,
   type PortfolioImportPreview,
 } from "@/lib/portfolioImport";
+import { trackProductEvent } from "@/lib/analytics";
 
 export default function Portfolio() {
   const { user } = useAuth();
@@ -62,6 +63,7 @@ export default function Portfolio() {
     onSuccess: () => {
       void summaryQuery.refetch();
       void transactionsQuery.refetch();
+      trackProductEvent("portfolio_transaction_added", { transaction_type: type });
       toast.success("Operação salva na sua carteira.");
     },
     onError: error =>
@@ -82,6 +84,7 @@ export default function Portfolio() {
       void transactionsQuery.refetch();
       setImportOpen(false);
       setImportPreview(null);
+      trackProductEvent("portfolio_import_completed", { imported_count: result.imported, rejected_count: result.rejected.length });
       const details = [
         result.duplicates
           ? `${result.duplicates} duplicada(s) ignorada(s)`
@@ -194,11 +197,11 @@ export default function Portfolio() {
         rentabilidade: optionalNumberValue(position.returnPercent),
       }))
     );
-    if (downloaded) toast.success("CSV da carteira gerado.");
+    if (downloaded) { trackProductEvent("portfolio_exported", { format: "positions_csv", position_count: positions.length }); toast.success("CSV da carteira gerado."); }
     else toast.error("Adicione uma posição antes de exportar.");
   };
-  const exportTransactionsCsv = () =>
-    downloadCsv(
+  const exportTransactionsCsv = () => {
+    const downloaded = downloadCsv(
       `virtus-lancamentos-${new Date().toISOString().slice(0, 10)}.csv`,
       (transactionsQuery.data ?? []).map(row => ({
         ticker: row.asset.ticker,
@@ -209,6 +212,8 @@ export default function Portfolio() {
         data: row.transaction.transactionDate,
       }))
     );
+    if (downloaded) trackProductEvent("portfolio_exported", { format: "transactions_csv", position_count: transactionsQuery.data?.length ?? 0 });
+  };
   const exportPdf = () => {
     const opened = printReport(
       "Relatório da carteira Virtus",
@@ -258,7 +263,8 @@ export default function Portfolio() {
         },
       ]
     );
-    if (!opened)
+    if (opened) trackProductEvent("portfolio_exported", { format: "pdf", position_count: positions.length });
+    else
       toast.error(
         "O navegador bloqueou a janela de impressão. Permita pop-ups e tente novamente."
       );

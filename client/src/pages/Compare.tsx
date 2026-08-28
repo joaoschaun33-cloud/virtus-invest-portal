@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { AlertTriangle, ArrowLeft, Plus, Scale, X } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -15,6 +15,7 @@ import {
 import { DataProvenance } from "@/components/DataProvenance";
 import { toast } from "sonner";
 import type { MarketDataSource } from "../../../shared/marketData";
+import { trackProductEvent } from "@/lib/analytics";
 
 export default function Compare() {
   const initial = useMemo(() => {
@@ -37,6 +38,7 @@ export default function Compare() {
     { enabled: tickers.length > 0 }
   );
   const snapshots = query.data ?? [];
+  const trackedComparison = useRef("");
   const add = () => {
     const value = input.trim().toUpperCase();
     if (!value) return toast.error("Informe um ticker.");
@@ -61,6 +63,13 @@ export default function Compare() {
     snapshots.map(snapshot => snapshot?.asset.assetType).filter(Boolean)
   );
   const mixedClasses = comparedClasses.size > 1;
+  useEffect(() => {
+    if (!query.isSuccess || snapshots.length < 2) return;
+    const key = snapshots.map(snapshot => snapshot?.asset.ticker).filter(Boolean).sort().join(",");
+    if (!key || trackedComparison.current === key) return;
+    trackedComparison.current = key;
+    trackProductEvent("comparison_completed", { asset_count: snapshots.length, mixed_classes: mixedClasses });
+  }, [mixedClasses, query.isSuccess, snapshots]);
 
   return (
     <DashboardLayout allowAnonymous>
