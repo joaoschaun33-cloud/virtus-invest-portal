@@ -13,6 +13,8 @@ os gates humanos e operacionais listados abaixo.
 
 - Saúde pública e prontidão do banco respondem com HTTP 200 em produção.
 - Dois monitores externos verificam saúde e banco a cada 60 segundos.
+- Duas políticas ativas notificam o e-mail operacional quando saúde pública ou
+  prontidão do banco falham por dois minutos.
 - Gate autenticado A/B aprovado em produção com contas descartáveis:
   isolamento de leitura, transações, alertas, preferências e exportações; token
   de conta excluída rejeitado.
@@ -29,6 +31,8 @@ os gates humanos e operacionais listados abaixo.
   exclusivamente manual. Um rascunho real foi gerado e ficou em revisão.
 - Agenda editorial ativa para manhã, meio do pregão, fechamento e nova tentativa
   de fechamento, sempre sem publicação automática.
+- Restauração real aprovada em instância temporária: volume recuperado, dados
+  essenciais lidos, migrações aplicadas e recurso temporário descartado.
 
 ## Limites conhecidos do beta
 
@@ -42,16 +46,15 @@ os gates humanos e operacionais listados abaixo.
 
 ## Gates obrigatórios antes de abertura ampla
 
-1. Criar uma política de alerta e vinculá-la a um canal operacional testado.
+1. Confirmar por teste controlado que o canal operacional recebe o alerta.
 2. Nomear titular e substituto para suporte, privacidade e incidentes.
 3. Obter revisão profissional de CVM, LGPD, contratos, licenças e conflitos.
-4. Executar restauração em ambiente temporário e arquivar a evidência.
-5. Aprovar e publicar manualmente o primeiro piloto editorial, preservando o
+4. Aprovar e publicar manualmente o primeiro piloto editorial, preservando o
    histórico de revisão.
-6. Conduzir entrevistas com iniciantes e experientes e acompanhar D1/D7/D30.
-7. Manter ao menos duas semanas de SLO dentro dos limites antes de ampliar o
+5. Conduzir entrevistas com iniciantes e experientes e acompanhar D1/D7/D30.
+6. Manter ao menos duas semanas de SLO dentro dos limites antes de ampliar o
    público.
-8. Repetir o gate autenticado A/B em cada release relevante.
+7. Repetir o gate autenticado A/B e a restauração na periodicidade definida.
 
 ## Decisão recomendada
 

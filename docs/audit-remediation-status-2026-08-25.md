@@ -1,6 +1,6 @@
 # Situação das correções da auditoria pré-beta
 
-Atualizado em 25 de agosto de 2026 após a revisão `virtus-web-00045-c7f`.
+Atualizado em 27 de agosto de 2026 após a revisão `virtus-web-00051-4wr`.
 
 ## Fechado tecnicamente
 
@@ -18,6 +18,12 @@ Atualizado em 25 de agosto de 2026 após a revisão `virtus-web-00045-c7f`.
 - Progresso do guia é salvo por conta, com cópia local para visitantes.
 - CLS móvel foi zero em seis medições; acessibilidade, boas práticas e SEO 100.
 - Dependências de produção sem vulnerabilidades conhecidas na auditoria atual.
+- Gate autenticado A/B aprovado em produção com contas descartáveis e limpeza
+  confirmada ao final.
+- Duas políticas de indisponibilidade ativas para `/api/health` e `/api/ready`,
+  vinculadas ao canal `suporte@virtusinvestimentos.com.br`.
+- Backup automático restaurado em instância temporária, dados essenciais
+  validados, migrações aplicadas e instância descartada com sucesso.
 
 ## Refinamentos entregues
 
@@ -31,14 +37,13 @@ Atualizado em 25 de agosto de 2026 após a revisão `virtus-web-00045-c7f`.
 
 ## Pendências que exigem execução ou decisão humana
 
-1. vincular os uptime checks a canal operacional verificado e política de alerta;
-2. executar restauração trimestral em instância temporária e registrar evidências;
-3. repetir o teste autenticado A/B no gate de cada release relevante;
-4. revisão profissional de CVM, LGPD, contratos, licenças e conflitos;
-5. responsável titular e substituto para suporte, privacidade e incidentes;
-6. entrevistas com iniciantes/experientes e métricas D1/D7/D30 do beta;
-7. piloto editorial/social com aprovação humana e arquivo de evidências;
-8. manter duas semanas de SLO e critérios do beta antes de abertura pública.
+1. confirmar recebimento real de um alerta no canal operacional configurado;
+2. repetir restauração e teste autenticado A/B no gate periódico definido;
+3. revisão profissional de CVM, LGPD, contratos, licenças e conflitos;
+4. responsável titular e substituto para suporte, privacidade e incidentes;
+5. entrevistas com iniciantes/experientes e métricas D1/D7/D30 do beta;
+6. piloto editorial/social com aprovação humana e arquivo de evidências;
+7. manter duas semanas de SLO e critérios do beta antes de abertura pública.
 
 Essas pendências não devem ser marcadas como concluídas por implementação de
 código, pois dependem de exercício real, validação profissional ou escolha de
