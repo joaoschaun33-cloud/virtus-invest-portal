@@ -21,7 +21,7 @@ const status = {
   cvmQuarterlyHistory: Boolean(cvmFinancials?.quarterlyHistory.length),
   derivedFinancialMetrics: derivedMetrics.length > 0,
   ibge: macro.indicators.some(
-    indicator => indicator.id === "ipca12m" && indicator.source === "IBGE"
+    indicator => indicator.id === "ipca12m" && indicator.source === "ibge"
   ),
   checkedAt: new Date().toISOString(),
 };

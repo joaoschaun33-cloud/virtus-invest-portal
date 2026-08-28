@@ -68,6 +68,22 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Isolation assertion failed: ${message}`);
 }
 
+async function attemptForeignDelete(
+  action: () => Promise<unknown>,
+  resource: string
+) {
+  try {
+    await action();
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    assert(
+      status === 403 || status === 404,
+      `${resource} deletion must be rejected with 403 or 404`
+    );
+    return;
+  }
+}
+
 async function deleteAccount(account: TestAccount | undefined) {
   if (!account) return;
   try {
@@ -153,11 +169,15 @@ try {
   );
 
   const foreignTransactionId = transactionsB[0].transaction.id;
-  await trpc(
-    accountA,
-    "portfolio.deleteTransaction",
-    { id: foreignTransactionId },
-    true
+  await attemptForeignDelete(
+    () =>
+      trpc(
+        accountA!,
+        "portfolio.deleteTransaction",
+        { id: foreignTransactionId },
+        true
+      ),
+    "transaction"
   );
   const transactionsBAfterAttack = await trpc(
     accountB,
@@ -171,11 +191,15 @@ try {
 
   const alertsB = await trpc(accountB, "portfolio.alerts", null);
   assert(alertsB.length === 1, "B must see B's alert");
-  await trpc(
-    accountA,
-    "portfolio.deleteAlert",
-    { id: alertsB[0].alert.id },
-    true
+  await attemptForeignDelete(
+    () =>
+      trpc(
+        accountA!,
+        "portfolio.deleteAlert",
+        { id: alertsB[0].alert.id },
+        true
+      ),
+    "alert"
   );
   const alertsBAfterAttack = await trpc(accountB, "portfolio.alerts", null);
   assert(
