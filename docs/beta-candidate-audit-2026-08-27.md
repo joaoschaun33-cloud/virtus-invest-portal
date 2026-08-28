@@ -63,3 +63,6 @@ os gates humanos e operacionais listados abaixo.
 O próximo ciclo deve priorizar operação e aprendizado, não aumento indiscriminado
 de funcionalidades: alertas com responsáveis, restauração real, validação
 jurídica, entrevistas e acompanhamento do comportamento dos primeiros usuários.
+
+Os campos de responsáveis, pareceres e evidências estão consolidados em
+`docs/beta-human-gates-handoff.md` para passagem à equipe responsável.
