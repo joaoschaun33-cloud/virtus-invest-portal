@@ -1,6 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { editorialDrafts, type EditorialDraftRow } from "../drizzle/schema";
 import { getDb } from "./db";
+import { ensureEditorialOperationActive } from "./editorialControl";
 import {
   approveEditorialDraft,
   createEditorialDraft,
@@ -59,6 +60,7 @@ export async function enqueueEditorialDraft(input: {
   createdBy: string;
   scheduledFor?: Date;
 }) {
+  await ensureEditorialOperationActive("gerar");
   const db = await requiredDb();
   const draft = createEditorialDraft(input);
   await db
@@ -157,6 +159,7 @@ export async function recordQueuedEditorialPublication(
   id: string,
   input: { publisher: string; channel: string; url?: string }
 ) {
+  await ensureEditorialOperationActive("publicar");
   const { db, row } = await getEditorialRow(id);
   const published = recordEditorialPublication(editorialRowToDraft(row), input);
   const result = await db

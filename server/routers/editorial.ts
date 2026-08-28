@@ -7,6 +7,7 @@ import {
   recordQueuedEditorialPublication,
   rejectQueuedEditorialDraft,
 } from "../editorialQueue";
+import { getEditorialOperationState, setEditorialOperationState } from "../editorialControl";
 
 const status = z.enum([
   "draft",
@@ -20,6 +21,17 @@ const reviewerName = (user: { email: string | null; openId: string }) =>
   user.email?.trim() || user.openId;
 
 export const editorialRouter = router({
+  operationState: adminProcedure.query(() => getEditorialOperationState()),
+  setOperationState: adminProcedure
+    .input(z.discriminatedUnion("paused", [
+      z.object({ paused: z.literal(true), reason: z.string().trim().min(3).max(1_000) }),
+      z.object({ paused: z.literal(false) }),
+    ]))
+    .mutation(({ ctx, input }) => setEditorialOperationState({
+      paused: input.paused,
+      reason: input.paused ? input.reason : undefined,
+      updatedBy: reviewerName(ctx.user),
+    })),
   list: adminProcedure
     .input(z.object({ status: status.optional(), limit: z.number().int().min(1).max(100).default(50) }).optional())
     .query(({ input }) => listEditorialDrafts(input)),

@@ -233,6 +233,17 @@ export const editorialDrafts = mysqlTable(
 
 export type EditorialDraftRow = typeof editorialDrafts.$inferSelect;
 
+/** Persistent kill switch for editorial generation and distribution. */
+export const editorialOperations = mysqlTable("editorialOperations", {
+  id: int("id").primaryKey(),
+  isPaused: tinyint("isPaused").notNull().default(0),
+  reason: text("reason"),
+  updatedBy: varchar("updatedBy", { length: 160 }).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EditorialOperation = typeof editorialOperations.$inferSelect;
+
 export const news = mysqlTable("news", {
   id: int("id").autoincrement().primaryKey(),
   assetId: int("assetId"),

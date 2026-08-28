@@ -43,6 +43,13 @@
       "when": 1787830315318,
       "tag": "0005_charming_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787928153519,
+      "tag": "0006_small_puma",
+      "breakpoints": true
     }
   ]
 }

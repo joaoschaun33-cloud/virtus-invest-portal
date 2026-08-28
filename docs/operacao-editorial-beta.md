@@ -31,6 +31,9 @@ Nesta fase, o Virtus **não publica automaticamente em redes sociais**. A automa
 - Autor e aprovador precisam ser identidades diferentes.
 - Aprovação não publica nas redes. A postagem continua manual e o canal/URL são registrados depois para auditoria.
 - Plantões não são gerados automaticamente e exigem fonte oficial ou duas fontes independentes.
+- O painel administrativo possui uma pausa geral persistente. Quando acionada
+  com justificativa, ela bloqueia novos rascunhos automáticos e o registro de
+  publicações até a retomada pelo administrador; a fila existente é preservada.
 
 Para criar ou atualizar os agendamentos, execute `scripts/configure-editorial-schedulers.ps1` após a publicação do backend.
 
