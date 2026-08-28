@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { EditorialVisualCard } from "@/components/editorial/EditorialVisualCard";
 
 const statusLabel = {
   draft: "Com pendências",
@@ -62,9 +63,10 @@ export default function Editorial() {
                   <div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-red-700 dark:text-red-300">{slotLabel[draft.slot]}</span><span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">{statusLabel[draft.status]}</span></div><h2 className="mt-3 text-lg font-semibold">{draft.title}</h2><p className="mt-1 text-xs text-muted-foreground">Criado por {draft.createdBy} · {new Date(draft.createdAt).toLocaleString("pt-BR")}</p></div>
                   <Button variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(`${draft.title}\n\n${draft.body}`).then(() => toast.success("Texto copiado."))}><Clipboard className="mr-2 h-4 w-4" />Copiar</Button>
                 </div>
-                <div className="grid gap-5 p-5 lg:grid-cols-[1.2fr_.8fr]">
+                <div className="grid gap-5 p-5 xl:grid-cols-[1fr_.72fr_.9fr]">
                   <div><p className="whitespace-pre-wrap text-sm leading-6">{draft.body}</p>{draft.issues.length > 0 && <ul className="mt-4 space-y-1 text-xs text-destructive">{draft.issues.map(issue => <li key={issue}>• {issue}</li>)}</ul>}{draft.reviewNote && <p className="mt-4 rounded-xl bg-muted p-3 text-xs"><strong>Nota da revisão:</strong> {draft.reviewNote}</p>}</div>
                   <div className="space-y-3"><h3 className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Evidências</h3><ul className="space-y-2 text-xs">{draft.facts.map(fact => <li key={fact}>• {fact}</li>)}</ul><div className="space-y-2">{draft.sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-primary underline underline-offset-4">{source.name}{source.official ? " · oficial" : ""}<ExternalLink className="h-3 w-3" /></a>)}</div></div>
+                  <EditorialVisualCard draft={draft} />
                 </div>
                 {(draft.status === "needs_review" || draft.status === "approved") && <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 p-4">{draft.status === "needs_review" ? <><Button variant="outline" onClick={() => setRejectId(draft.id)}><XCircle className="mr-2 h-4 w-4" />Rejeitar</Button><Button onClick={() => approve.mutate({ id: draft.id })} disabled={approve.isPending}><CheckCircle2 className="mr-2 h-4 w-4" />Aprovar</Button></> : <Button onClick={() => setPublishId(draft.id)}><Send className="mr-2 h-4 w-4" />Registrar publicação manual</Button>}</div>}
                 {draft.status === "published" && <div className="border-t border-border/60 p-4 text-xs text-emerald-700 dark:text-emerald-300"><FileCheck2 className="mr-2 inline h-4 w-4" />Publicado manualmente em {draft.publishedChannel}{draft.publishedAt ? ` · ${new Date(draft.publishedAt).toLocaleString("pt-BR")}` : ""}</div>}
