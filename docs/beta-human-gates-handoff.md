@@ -1,21 +1,25 @@
 # Passagem dos gates humanos do beta
 
 Este documento concentra somente decisões e evidências que não podem ser
-produzidas pelo software. Preencher nomes, datas e links reais; não aceitar
-aprovação genérica ou presumida.
+produzidas pelo software. O Virtus opera inicialmente como projeto de fundador
+solo. Essa realidade deve ser explícita, sem simular departamentos ou pessoas
+inexistentes.
 
 ## 1. Responsáveis operacionais
 
 | Função | Titular | Substituto | Canal | Aceite em |
 | --- | --- | --- | --- | --- |
-| Incidentes e disponibilidade | A definir | A definir | A definir | A definir |
-| Privacidade e titulares | A definir | A definir | A definir | A definir |
-| Suporte ao usuário | A definir | A definir | `suporte@virtusinvestimentos.com.br` | A definir |
-| Curadoria editorial | A definir | A definir | A definir | A definir |
-| Dados e fontes | A definir | A definir | A definir | A definir |
+| Incidentes e disponibilidade | Fundador | Não designado | Canal operacional do Google Cloud | 27/08/2026 |
+| Privacidade e titulares | Fundador | Não designado | Canal de privacidade publicado no portal | 27/08/2026 |
+| Suporte ao usuário | Fundador | Não designado | `suporte@virtusinvestimentos.com.br` | 27/08/2026 |
+| Curadoria editorial | Fundador | Não designado | Área administrativa editorial | 27/08/2026 |
+| Dados e fontes | Fundador | Não designado | Logs e área de confiança do portal | 27/08/2026 |
 
-Critério de aceite: cada pessoa confirma que recebeu o runbook, consegue acessar
-os sistemas necessários e conhece o caminho de escalonamento.
+O fundador declarou ser o responsável único nesta fase. A ausência de substituto
+é um risco aceito apenas para o beta controlado: incidentes podem demorar mais a
+ser atendidos durante indisponibilidade pessoal. Antes de ampliar o público,
+designar ao menos um contato de contingência com acesso documentado e princípio
+do menor privilégio.
 
 ## 2. Exercício do canal de alerta
 
@@ -40,7 +44,7 @@ O responsável deve conduzir um teste controlado, sem derrubar produção:
 
 | Evidência | Valor |
 | --- | --- |
-| Responsável pelo exercício | A definir |
+| Responsável pelo exercício | Fundador |
 | Início da falha simulada | A definir |
 | Incidente aberto em | A definir |
 | E-mail recebido em | A definir |
@@ -76,15 +80,18 @@ O profissional responsável deve registrar parecer sobre:
 
 ## 4. Primeiro piloto editorial
 
-Usar um rascunho real gerado pela fila administrativa. Autor e aprovador devem
-ser pessoas diferentes.
+Usar preferencialmente um rascunho gerado pela automação, cujo autor técnico é
+`automacao-editorial@virtus`; o fundador pode revisá-lo e aprová-lo sem violar o
+controle de identidade diferente. Conteúdo extraordinário criado manualmente
+pelo fundador não pode ser autoaprovado: deve aguardar revisão externa ou ser
+descartado.
 
 | Campo | Valor |
 | --- | --- |
 | ID do rascunho | A definir |
 | Janela editorial | A definir |
-| Autor | A definir |
-| Aprovador | A definir |
+| Autor | `automacao-editorial@virtus` |
+| Aprovador | Fundador |
 | Fontes verificadas | A definir |
 | Correções solicitadas | A definir |
 | Canal de publicação | A definir |
@@ -104,13 +111,13 @@ comparação, criação de carteira e retorno ao portal.
 
 | Gate | Responsável | Evidência | Situação |
 | --- | --- | --- | --- |
-| Roteiro e consentimento da pesquisa | A definir | A definir | Pendente |
-| Entrevistas com iniciantes | A definir | A definir | Pendente |
-| Entrevistas com experientes | A definir | A definir | Pendente |
-| Linha de base D1 | A definir | A definir | Pendente |
-| Retenção D7 | A definir | A definir | Pendente |
-| Retenção D30 | A definir | A definir | Pendente |
-| Duas semanas dentro do SLO | A definir | A definir | Pendente |
+| Roteiro e consentimento da pesquisa | Fundador | A definir | Pendente |
+| Entrevistas com iniciantes | Fundador | A definir | Pendente |
+| Entrevistas com experientes | Fundador | A definir | Pendente |
+| Linha de base D1 | Fundador | A definir | Pendente |
+| Retenção D7 | Fundador | A definir | Pendente |
+| Retenção D30 | Fundador | A definir | Pendente |
+| Duas semanas dentro do SLO | Fundador | A definir | Pendente |
 
 ## Decisão de ampliação
 
@@ -120,6 +127,6 @@ piloto editorial auditável e duas semanas de operação dentro do SLO.
 
 | Decisão | Nome | Data | Justificativa |
 | --- | --- | --- | --- |
-| Produto | A definir | A definir | A definir |
-| Engenharia/operações | A definir | A definir | A definir |
+| Produto | Fundador | A definir | A definir |
+| Engenharia/operações | Fundador | A definir | A definir |
 | Jurídico/privacidade | A definir | A definir | A definir |

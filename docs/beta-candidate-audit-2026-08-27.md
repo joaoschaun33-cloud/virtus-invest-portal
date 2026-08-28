@@ -47,7 +47,8 @@ os gates humanos e operacionais listados abaixo.
 ## Gates obrigatórios antes de abertura ampla
 
 1. Confirmar por teste controlado que o canal operacional recebe o alerta.
-2. Nomear titular e substituto para suporte, privacidade e incidentes.
+2. Designar um contato de contingência para suporte, privacidade e incidentes;
+   durante o beta controlado, o fundador responde sozinho por essas funções.
 3. Obter revisão profissional de CVM, LGPD, contratos, licenças e conflitos.
 4. Aprovar e publicar manualmente o primeiro piloto editorial, preservando o
    histórico de revisão.

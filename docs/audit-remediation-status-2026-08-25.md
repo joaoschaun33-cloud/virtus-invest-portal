@@ -40,7 +40,8 @@ Atualizado em 27 de agosto de 2026 após a revisão `virtus-web-00051-4wr`.
 1. confirmar recebimento real de um alerta no canal operacional configurado;
 2. repetir restauração e teste autenticado A/B no gate periódico definido;
 3. revisão profissional de CVM, LGPD, contratos, licenças e conflitos;
-4. responsável titular e substituto para suporte, privacidade e incidentes;
+4. fundador já definido como titular; falta contato de contingência para
+   suporte, privacidade e incidentes antes da ampliação pública;
 5. entrevistas com iniciantes/experientes e métricas D1/D7/D30 do beta;
 6. piloto editorial/social com aprovação humana e arquivo de evidências;
 7. manter duas semanas de SLO e critérios do beta antes de abertura pública.
