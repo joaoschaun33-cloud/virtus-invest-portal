@@ -2,6 +2,7 @@ import {
   bigint,
   decimal,
   int,
+  index,
   mysqlEnum,
   mysqlTable,
   text,
@@ -365,3 +366,21 @@ export const userPreferences = mysqlTable("userPreferences", {
 });
 
 export type UserPreferences = typeof userPreferences.$inferSelect;
+
+/** Append-only consent evidence for authenticated users. */
+export const consentRecords = mysqlTable(
+  "consentRecords",
+  {
+    id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    value: mysqlEnum("value", ["necessary", "analytics"]).notNull(),
+    policyVersion: varchar("policyVersion", { length: 20 }).notNull(),
+    source: mysqlEnum("source", ["web"]).notNull().default("web"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    userCreatedIndex: index("consent_records_user_created_idx").on(table.userId, table.createdAt),
+  })
+);
+
+export type ConsentRecord = typeof consentRecords.$inferSelect;

@@ -218,6 +218,11 @@ try {
     "B must receive only B's preferences"
   );
 
+  await trpc(accountA, "portfolio.recordConsent", { value: "analytics", policyVersion: "2026-08-25" }, true);
+  await trpc(accountA, "portfolio.recordConsent", { value: "analytics", policyVersion: "2026-08-25" }, true);
+  await trpc(accountA, "portfolio.recordConsent", { value: "necessary", policyVersion: "2026-08-25" }, true);
+  await trpc(accountB, "portfolio.recordConsent", { value: "necessary", policyVersion: "2026-08-25" }, true);
+
   const exportA = await trpc(accountA, "portfolio.exportData", null);
   const exportB = await trpc(accountB, "portfolio.exportData", null);
   assert(
@@ -231,6 +236,14 @@ try {
   assert(
     exportA.transactions.length === 1 && exportB.transactions.length === 1,
     "exports must remain isolated"
+  );
+  assert(
+    exportA.consentHistory.length === 2 && exportA.consentHistory[0].value === "necessary",
+    "A export must contain deduplicated consent and revocation history"
+  );
+  assert(
+    exportB.consentHistory.length === 1 && exportB.consentHistory[0].value === "necessary",
+    "consent history must remain isolated between accounts"
   );
 
   await deleteAccount(accountA);
@@ -253,6 +266,7 @@ try {
         "read isolation",
         "foreign transaction deletion blocked",
         "foreign alert deletion blocked",
+        "consent history deduplicated and isolated",
         "preference isolation",
         "export isolation",
         "deleted identity rejected",

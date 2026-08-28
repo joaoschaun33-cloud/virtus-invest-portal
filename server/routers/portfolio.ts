@@ -18,9 +18,11 @@ import {
   listDividends,
   listNotifications,
   listTransactions,
+  listConsentRecords,
   markNotificationRead,
   removeWatchlist,
   savePreferences,
+  recordUserConsent,
   toggleAlert,
 } from "../db";
 import { getAssetByTicker } from "../db";
@@ -310,13 +312,14 @@ export const portfolioRouter = router({
     getPreferences(ctx.user.id)
   ),
   exportData: protectedProcedure.query(async ({ ctx }) => {
-    const [watchlist, transactions, alerts, notifications, preferences] =
+    const [watchlist, transactions, alerts, notifications, preferences, consentHistory] =
       await Promise.all([
         getWatchlist(ctx.user.id),
         listTransactions(ctx.user.id),
         listAlerts(ctx.user.id),
         listNotifications(ctx.user.id),
         getPreferences(ctx.user.id),
+        listConsentRecords(ctx.user.id),
       ]);
     return {
       exportedAt: new Date().toISOString(),
@@ -331,8 +334,12 @@ export const portfolioRouter = router({
       transactions,
       alerts,
       notifications,
+      consentHistory,
     };
   }),
+  recordConsent: protectedProcedure
+    .input(z.object({ value: z.enum(["necessary", "analytics"]), policyVersion: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+    .mutation(({ ctx, input }) => recordUserConsent(ctx.user.id, input)),
   deleteAccount: protectedProcedure
     .input(z.object({ confirmation: z.literal("EXCLUIR MINHA CONTA") }))
     .mutation(async ({ ctx }) => {

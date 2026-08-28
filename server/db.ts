@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   assets,
+  consentRecords,
   dividends,
   economicEvents,
   notifications,
@@ -23,6 +24,7 @@ import {
   summarizePortfolioPerformance,
   summarizePortfolioRows,
 } from "./portfolioLogic";
+import { shouldAppendConsentRecord, type ConsentChoice } from "./privacyConsent";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let seedPromise: Promise<void> | null = null;
@@ -98,6 +100,7 @@ export async function deleteUserAccountData(userId: number) {
   if (!db)
     throw new Error("A exclusão da conta não está disponível no momento.");
   await db.transaction(async tx => {
+    await tx.delete(consentRecords).where(eq(consentRecords.userId, userId));
     await tx.delete(notifications).where(eq(notifications.userId, userId));
     await tx.delete(priceAlerts).where(eq(priceAlerts.userId, userId));
     await tx.delete(transactions).where(eq(transactions.userId, userId));
@@ -105,6 +108,21 @@ export async function deleteUserAccountData(userId: number) {
     await tx.delete(userPreferences).where(eq(userPreferences.userId, userId));
     await tx.delete(users).where(eq(users.id, userId));
   });
+}
+
+export async function listConsentRecords(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(consentRecords).where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt));
+}
+
+export async function recordUserConsent(userId: number, input: { value: ConsentChoice; policyVersion: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Registro de consentimento indisponível no momento.");
+  const [latest] = await db.select({ value: consentRecords.value, policyVersion: consentRecords.policyVersion }).from(consentRecords).where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt)).limit(1);
+  if (!shouldAppendConsentRecord(latest, input)) return { recorded: false };
+  await db.insert(consentRecords).values({ userId, value: input.value, policyVersion: input.policyVersion, source: "web" });
+  return { recorded: true };
 }
 
 const catalog: InsertAsset[] = [

@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { PageMetadata } from "@/components/PageMetadata";
 import { Link, useRoute } from "wouter";
 
-const updatedAt = "19 de agosto de 2026";
+const updatedAt = "28 de agosto de 2026";
 const contactEmail = "contato@virtusinvestimentos.com.br";
 
 const content = {
@@ -17,7 +17,7 @@ const content = {
       ],
       [
         "Dados tratados",
-        "Tratamos dados de cadastro e autenticação, como nome, e-mail, identificador da conta e provedor de acesso; preferências do portal; informações inseridas voluntariamente em carteiras, operações, listas e alertas; mensagens de suporte; e registros técnicos necessários à segurança, prevenção de abuso e diagnóstico de falhas. Não solicitamos senha bancária nem credenciais de corretoras.",
+        "Tratamos dados de cadastro e autenticação, como nome, e-mail, identificador da conta e provedor de acesso; preferências do portal; escolha de consentimento, versão da política e horário para contas autenticadas; informações inseridas voluntariamente em carteiras, operações, listas e alertas; mensagens de suporte; e registros técnicos necessários à segurança, prevenção de abuso e diagnóstico de falhas. Não solicitamos senha bancária nem credenciais de corretoras.",
       ],
       [
         "Finalidades e bases legais",
@@ -115,7 +115,7 @@ const content = {
       ],
       [
         "Como alterar a escolha",
-        "Você pode revisar ou revogar a escolha a qualquer momento na área Confiança e dados, em Preferências de privacidade. Também pode bloquear cookies pelo navegador, ciente de que isso pode impedir autenticação e preferências essenciais.",
+        "Você pode revisar ou revogar a escolha a qualquer momento na área Confiança e dados, em Preferências de privacidade. Para contas autenticadas, cada mudança registra somente a escolha, a versão desta política e o horário, compondo um histórico exportável e eliminável com a conta. Também pode bloquear cookies pelo navegador, ciente de que isso pode impedir autenticação e preferências essenciais.",
       ],
       [
         "Duração e terceiros",

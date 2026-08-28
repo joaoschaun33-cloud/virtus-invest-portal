@@ -4,6 +4,7 @@ import { Link } from "wouter";
 
 export const CONSENT_KEY = "virtus-cookie-consent-v1";
 const CONSENT_RECORD_KEY = "virtus-cookie-consent-record-v1";
+export const CONSENT_POLICY_VERSION = "2026-08-25";
 export type CookieConsentValue = "necessary" | "analytics";
 
 export function openCookiePreferences() {
@@ -24,7 +25,7 @@ export function CookieConsent() {
     localStorage.setItem(CONSENT_KEY, value);
     localStorage.setItem(
       CONSENT_RECORD_KEY,
-      JSON.stringify({ value, policyVersion: "2026-08-25", savedAt: new Date().toISOString() })
+      JSON.stringify({ value, policyVersion: CONSENT_POLICY_VERSION, savedAt: new Date().toISOString() })
     );
     window.dispatchEvent(new CustomEvent("virtus:consent", { detail: value }));
     setVisible(false);

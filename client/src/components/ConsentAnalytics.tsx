@@ -2,9 +2,12 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   CONSENT_KEY,
+  CONSENT_POLICY_VERSION,
   type CookieConsentValue,
 } from "@/components/CookieConsent";
 import { recordConsentedBetaSession } from "@/lib/retentionMetrics";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const measurementId = import.meta.env.VITE_ANALYTICS_ID as string | undefined;
 
@@ -43,6 +46,20 @@ function disableAnalytics() {
 
 export function ConsentAnalytics() {
   const [location] = useLocation();
+  const { user } = useAuth();
+  const recordConsent = trpc.portfolio.recordConsent.useMutation();
+
+  useEffect(() => {
+    if (!user) return;
+    const sync = (value: CookieConsentValue | null) => {
+      if (value === "necessary" || value === "analytics")
+        recordConsent.mutate({ value, policyVersion: CONSENT_POLICY_VERSION });
+    };
+    sync(localStorage.getItem(CONSENT_KEY) as CookieConsentValue | null);
+    const onConsent = (event: Event) => sync((event as CustomEvent<CookieConsentValue>).detail);
+    window.addEventListener("virtus:consent", onConsent);
+    return () => window.removeEventListener("virtus:consent", onConsent);
+  }, [user?.id]);
 
   useEffect(() => {
     if (localStorage.getItem(CONSENT_KEY) === "analytics") enableAnalytics();
