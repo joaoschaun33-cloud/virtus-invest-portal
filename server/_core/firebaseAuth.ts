@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import type { Request } from "express";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
+import { roleForConfiguredAdmin } from "../adminAccess";
 
 const firebaseApp =
   getApps()[0] ??
@@ -30,8 +31,9 @@ export async function authenticateFirebaseRequest(
     email,
     loginMethod: provider,
     lastSignedIn: new Date(),
-    role:
-      adminEmail && email?.toLowerCase() === adminEmail ? "admin" : undefined,
+    // Production has one configured administrator. Supplying "user" here also
+    // removes stale admin privileges from an address that is no longer configured.
+    role: roleForConfiguredAdmin(email, adminEmail),
   });
 
   return (await db.getUserByOpenId(decoded.uid)) ?? null;
