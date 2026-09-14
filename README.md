@@ -126,8 +126,8 @@ virtus-portal/
 
 ### 1. Clonar o Repositório
 ```bash
-git clone https://github.com/joaoschaun/virtus-portal.git
-cd virtus-portal
+git clone https://github.com/joaoschaun33-cloud/virtus-invest-portal.git
+cd virtus-invest-portal
 ```
 
 ### 2. Instalar Dependências
