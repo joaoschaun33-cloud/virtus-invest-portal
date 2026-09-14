@@ -1,5 +1,6 @@
 import { Coins, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatPrice } from "@/lib/formatters";
 
 export default function PortfolioIncome() {
@@ -10,7 +11,30 @@ export default function PortfolioIncome() {
     0
   );
 
-  if (incomeQuery.isLoading || !events.length) return null;
+  if (incomeQuery.isLoading) {
+    return (
+      <section
+        className="mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card/50 p-5"
+        aria-busy="true"
+        aria-label="Carregando proventos identificados"
+      >
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-xl" />
+          <div className="flex-1">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="mt-2 h-3 w-64" />
+          </div>
+        </div>
+        <div className="mt-5 space-y-3">
+          {[0, 1, 2].map(index => (
+            <Skeleton key={index} className="h-10 w-full" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (!events.length) return null;
 
   return (
     <section className="mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card/50">

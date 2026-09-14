@@ -1,5 +1,6 @@
 import { CircleAlert, Landmark, PieChart, TrendingUp } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   formatPercent,
   formatPrice,
@@ -34,7 +35,26 @@ export default function PortfolioInsight() {
       : null;
   const realized = performance.data?.realizedProfit ?? 0;
 
-  if (performance.isLoading || !positions.length) return null;
+  if (performance.isLoading) {
+    return (
+      <section
+        className="mb-6 grid gap-4 lg:grid-cols-3"
+        aria-busy="true"
+        aria-label="Carregando indicadores da carteira"
+      >
+        {[0, 1, 2].map(index => (
+          <div key={index} className="metric-card">
+            <Skeleton className="h-8 w-8 rounded-xl" />
+            <Skeleton className="mt-4 h-3 w-24" />
+            <Skeleton className="mt-2 h-5 w-32" />
+            <Skeleton className="mt-2 h-3 w-40" />
+          </div>
+        ))}
+      </section>
+    );
+  }
+
+  if (!positions.length) return null;
 
   return (
     <section className="mb-6 grid gap-4 lg:grid-cols-3">
