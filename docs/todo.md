@@ -138,11 +138,11 @@
 
 ## Criação de repositório GitHub privado
 
-- [ ] Validar autenticação com a CLI do GitHub.
-- [ ] Criar repositório privado `virtus-invest-portal`.
-- [ ] Enviar o código atual do projeto para o GitHub.
+- [x] Validar autenticação com a CLI do GitHub.
+- [x] Criar repositório privado `virtus-invest-portal` (github.com/joaoschaun33-cloud/virtus-invest-portal).
+- [x] Enviar o código atual do projeto para o GitHub (2026-09-14).
 
 ## Exportação para GitHub
 
-- [ ] Conectar conta GitHub do usuário para habilitar exportação de repositório privado.
-- [ ] Criar o repositório `virtus-invest-portal` via interface de gerenciamento.
+- [x] Conectar conta GitHub do usuário para habilitar exportação de repositório privado.
+- [x] Criar o repositório `virtus-invest-portal` via interface de gerenciamento.
