@@ -1,5 +1,6 @@
 import { marketSourceOrder, type MarketProviderId } from "./dataSourcePolicy";
 import type { MarketDataFreshness } from "../shared/marketData";
+import { logger } from "./_core/logger";
 
 export type ProviderSource =
   | "brapi"
@@ -983,6 +984,15 @@ export async function fetchEconomicCalendar(days = 180) {
   return listOfficialBcbEvents(days);
 }
 
+// Fonte: calendário oficial de reuniões do Copom publicado pelo Banco
+// Central (https://www.bcb.gov.br/publicacoes/atascopom /
+// https://www.bcb.gov.br/controleinflacao/relatoriopoliticamonetaria).
+// O BCB divulga esse calendário com cerca de um ano de antecedência, por
+// isso mantemos a lista como referência manual em vez de depender de um
+// endpoint estruturado (o BCB não publica um). `assertOfficialBcbScheduleFreshness`
+// abaixo transforma o risco de "ficar desatualizado silenciosamente" em um
+// alerta operacional visível nos logs quando a cobertura estiver acabando.
+// Última atualização manual desta lista: 2026-09-14.
 const officialBcbSchedule = [
   ["2026-09-16T18:30:00-03:00", "Decisão de juros — Copom", "Juros"],
   ["2026-09-22T08:00:00-03:00", "Ata da reunião do Copom", "Juros"],
@@ -1013,8 +1023,38 @@ const officialBcbSchedule = [
   ["2027-12-14T08:00:00-03:00", "Ata da reunião do Copom", "Juros"],
 ] as const;
 
+export const BCB_SCHEDULE_COVERAGE_WARNING_DAYS = 60;
+let warnedStaleOfficialBcbSchedule = false;
+
+/**
+ * Verifica se a lista manual de eventos do Copom ainda cobre um horizonte
+ * seguro à frente de `now`. Quando a cobertura cai abaixo de
+ * `BCB_SCHEDULE_COVERAGE_WARNING_DAYS`, emite um alerta estruturado (uma
+ * única vez por processo) em vez de deixar o calendário ficar desatualizado
+ * silenciosamente. Retorna a data do último evento e se o alerta é devido,
+ * para permitir testes determinísticos.
+ */
+export function assertOfficialBcbScheduleFreshness(now = new Date()) {
+  const lastScheduledDate = new Date(
+    officialBcbSchedule[officialBcbSchedule.length - 1][0]
+  );
+  const warningThreshold = new Date(
+    now.getTime() + BCB_SCHEDULE_COVERAGE_WARNING_DAYS * 86_400_000
+  );
+  const needsUpdate = lastScheduledDate <= warningThreshold;
+  if (needsUpdate && !warnedStaleOfficialBcbSchedule) {
+    warnedStaleOfficialBcbSchedule = true;
+    logger.warn("official-bcb-schedule-needs-update", {
+      lastScheduledDate: lastScheduledDate.toISOString(),
+      warningThresholdDays: BCB_SCHEDULE_COVERAGE_WARNING_DAYS,
+    });
+  }
+  return { lastScheduledDate, needsUpdate };
+}
+
 export function listOfficialBcbEvents(days = 180, now = new Date()) {
   const end = new Date(now.getTime() + days * 86_400_000);
+  assertOfficialBcbScheduleFreshness(now);
   return officialBcbSchedule
     .map(([date, title, category]) => ({
       title,
