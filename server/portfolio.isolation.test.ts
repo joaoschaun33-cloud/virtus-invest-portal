@@ -54,7 +54,28 @@ const context = (user: typeof userA | null) =>
 beforeEach(() => {
   vi.clearAllMocks();
   dbMocks.getWatchlist.mockImplementation(async (userId: number) => [
-    { owner: userId },
+    {
+      watchlistId: userId,
+      asset: {
+        id: userId,
+        ticker: `USER${userId}`,
+        name: "Ativo de Teste",
+        assetType: "STOCK",
+        exchange: "B3",
+        currency: "BRL",
+        sector: null,
+        source: "catalog",
+        lastPrice: null,
+        changePercent: null,
+        dayVolume: null,
+        peRatio: null,
+        pbRatio: null,
+        dividendYield: null,
+        roe: null,
+        netMargin: null,
+      },
+      createdAt: new Date(),
+    },
   ]);
   dbMocks.listTransactions.mockImplementation(async (userId: number) => [
     { owner: userId },
@@ -81,7 +102,9 @@ describe("isolamento entre contas no roteador de carteira", () => {
     await expect(callerB.transactions()).resolves.toEqual([
       { owner: userB.id },
     ]);
-    await expect(callerA.watchlist()).resolves.toEqual([{ owner: userA.id }]);
+    const watchlistA = await callerA.watchlist();
+    expect(watchlistA).toHaveLength(1);
+    expect(watchlistA[0].asset.id).toBe(userA.id);
     await expect(callerB.alerts()).resolves.toEqual([{ owner: userB.id }]);
     await expect(callerA.notifications()).resolves.toEqual([
       { owner: userA.id },

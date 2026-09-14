@@ -28,7 +28,7 @@ import {
   Panel,
 } from "@/components/apex/ApexPrimitives";
 import { useMarketRealtime } from "@/hooks/useMarketRealtime";
-import { trpc } from "@/lib/trpc";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
 import {
   formatCompact,
   formatDate,
@@ -634,7 +634,7 @@ function MarketList({
 }: {
   title: string;
   icon: React.ReactNode;
-  data: any[];
+  data: RouterOutputs["market"]["assets"];
   negative?: boolean;
   volume?: boolean;
 }) {
@@ -716,9 +716,13 @@ function EditorialWidget({
   index: number;
   total: number;
   onMove: (widget: string, direction: -1 | 1) => void;
-  news: any[];
-  calendar: any[];
-  watchlist: any[];
+  news: RouterOutputs["market"]["news"];
+  calendar: RouterOutputs["market"]["calendar"];
+  // Already unwrapped to the underlying assets by the caller (see
+  // `watchlistQuery.data?.map(item => item.asset)` in Home()). Each `asset`
+  // is the canonical AssetSnapshot (portfolio.watchlist normalizes it
+  // server-side), matching market.assets' shape exactly.
+  watchlist: RouterOutputs["market"]["assets"];
   signedIn: boolean;
 }) {
   const controls = (

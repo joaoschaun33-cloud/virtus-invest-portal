@@ -28,6 +28,7 @@ import {
 import { getAssetByTicker } from "../db";
 import { deleteFirebaseUser } from "../_core/firebaseAuth";
 import { hasValidPositionLedger } from "../portfolioLogic";
+import { getStoredAssetSnapshot } from "../assetSnapshot";
 
 export type ManualTransactionValidationInput = {
   transactionType: "BUY" | "SELL";
@@ -68,7 +69,19 @@ export function validateManualTransaction(
 }
 
 export const portfolioRouter = router({
-  watchlist: protectedProcedure.query(({ ctx }) => getWatchlist(ctx.user.id)),
+  watchlist: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await getWatchlist(ctx.user.id);
+    // Normalize each raw joined asset row into the canonical AssetSnapshot
+    // shape so every page that renders a watchlist item (Home, Markets,
+    // AssetDetail) sees the same price/change fields as the main market
+    // list, instead of the unprocessed DB row (see ADR on canonical
+    // snapshots — market.assets already does this via listAssetsWithLiveQuotes).
+    return rows.map(row => ({
+      watchlistId: row.watchlistId,
+      asset: getStoredAssetSnapshot(row.asset),
+      createdAt: row.createdAt,
+    }));
+  }),
   addToWatchlist: protectedProcedure
     .input(z.object({ assetId: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
