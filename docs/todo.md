@@ -146,3 +146,25 @@
 
 - [x] Conectar conta GitHub do usuário para habilitar exportação de repositório privado.
 - [x] Criar o repositório `virtus-invest-portal` via interface de gerenciamento.
+
+## Correções da auditoria multidisciplinar (2026-09-14)
+
+Ver `docs/audits/AUDITORIA_MULTIDISCIPLINAR_2026-09-14.md` para o relatório completo.
+
+- [x] Trocar licença MIT por licença proprietária (LICENSE, package.json, README.md).
+- [x] Criar repositório GitHub privado e migrar o histórico completo (ver seções acima).
+- [x] Adicionar alerta automático de proximidade do fim da cobertura manual do calendário Copom/BCB (`assertOfficialBcbScheduleFreshness`), com teste dedicado.
+- [x] Substituir todos os `console.log/warn/error` de produção no servidor pelo logger estruturado (`server/_core/logger.ts`).
+- [x] Remover tipagem `any[]` de `Home.tsx` usando `RouterOutputs` inferido do `AppRouter`; corrigir inconsistência real de tipos entre `portfolio.watchlist` (linha bruta da tabela `assets`) e `market.assets` (snapshot canônico) — `portfolio.watchlist` agora normaliza cada ativo via `getStoredAssetSnapshot`, igual ao restante do produto.
+- [x] Rodar Lighthouse mobile em produção (www.virtusinvestimentos.com.br): Performance 94, Acessibilidade 100, Boas Práticas 96, SEO 100 — resultado salvo em `docs/lighthouse-2026-09-14-home.json`.
+- [x] Corrigir estados de loading que retornavam `null` sem feedback visual (`PortfolioInsight.tsx`, `PortfolioIncome.tsx`) — agora mostram skeleton enquanto carregam.
+- [x] Re-verificar itens médio/baixo impacto de auditorias anteriores: placeholder em inglês (ausente), tabela mobile frágil (já responsiva com grid colapsável), pausa do ticker por foco de teclado (`:focus-within` já presente) — todos já resolvidos por trabalho anterior.
+- [ ] Casts `as any` em primitivos shadcn/ui vendorizados (`textarea.tsx`, `input.tsx`, `dialog.tsx`) — avaliados e deixados como estão de propósito: são workarounds pragmáticos de composição de IME/teclado com risco de regressão maior que o benefício de remover o cast.
+
+### Pendências que não são de código (decisão humana/negócio)
+
+- [ ] Decidir e agendar a abertura do beta fechado — produto já passou no próprio gate técnico.
+- [ ] Revisão jurídica profissional CVM/LGPD do conteúdo de "análise fundamentalista".
+- [ ] Simular custo variável por usuário ativo dos provedores de dados pagos (Twelve Data, Finnhub, CoinGecko, EODHD) antes de qualquer campanha de aquisição.
+- [ ] Testar a home com 5 usuários reais.
+- [ ] Definir modelo de monetização (mesmo que a resposta seja "nenhum por 12 meses").
