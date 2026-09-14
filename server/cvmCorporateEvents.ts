@@ -2,6 +2,7 @@ import { unzipSync } from "fflate";
 import { parseDelimitedLine } from "./delimitedText";
 import { identifyRelatedTickers } from "./newsEnrichment";
 import type { OfficialNewsItem } from "./officialNews";
+import { logger } from "./_core/logger";
 
 const DATA_ROOT =
   "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS";
@@ -98,7 +99,12 @@ async function fetchYear(year: number) {
     const csv = decodeCsv(bytes, year);
     return csv ? parseCvmCorporateEvents(csv) : [];
   } catch (error) {
-    console.warn("[Editorial] CVM corporate events unavailable", error);
+    logger.warn("editorial-cvm-corporate-events-unavailable", {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
     return [];
   }
 }

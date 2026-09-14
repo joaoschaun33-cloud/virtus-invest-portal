@@ -29,6 +29,7 @@ import { getAssetByTicker } from "../db";
 import { deleteFirebaseUser } from "../_core/firebaseAuth";
 import { hasValidPositionLedger } from "../portfolioLogic";
 import { getStoredAssetSnapshot } from "../assetSnapshot";
+import { logger } from "../_core/logger";
 
 export type ManualTransactionValidationInput = {
   transactionType: "BUY" | "SELL";
@@ -367,7 +368,9 @@ export const portfolioRouter = router({
       try {
         await deleteFirebaseUser(ctx.user.openId);
       } catch (error) {
-        console.error("[Privacy] Firebase user deletion failed", error);
+        logger.error("privacy-firebase-user-deletion-failed", error, {
+          userId: ctx.user.id,
+        });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:

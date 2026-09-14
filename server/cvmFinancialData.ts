@@ -1,5 +1,6 @@
 import { unzipSync } from "fflate";
 import { parseDelimitedLine } from "./delimitedText";
+import { logger } from "./_core/logger";
 
 const CVM_DATA_ROOT = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
@@ -361,7 +362,14 @@ async function loadLatestBatch(targets: Array<{ ticker: string; cnpj: string }>)
       for (const [targetCnpj, value] of Array.from(filingResults.entries()))
         results.set(targetCnpj, value);
     } catch (error) {
-      console.warn(`[CVM Financials] ${filing} ${candidateYear} unavailable`, error);
+      logger.warn("cvm-financials-filing-unavailable", {
+        filing,
+        year: candidateYear,
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : error,
+      });
     }
   }
   return results;

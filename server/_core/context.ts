@@ -1,6 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { authenticateFirebaseRequest } from "./firebaseAuth";
+import { logger } from "./logger";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -16,8 +17,15 @@ export async function createContext(
   try {
     user = await authenticateFirebaseRequest(opts.req);
   } catch (error) {
-    // Authentication is optional for public procedures.
-    console.error("[Auth] Firebase request verification failed", error);
+    // A Bearer token was presented but failed verification (expired,
+    // revoked, malformed). Authentication is optional for public
+    // procedures, so this simply falls back to an anonymous request.
+    logger.warn("auth-firebase-token-verification-failed", {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
     user = null;
   }
 

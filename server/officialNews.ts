@@ -4,6 +4,7 @@ import {
   type EditorialCategory,
 } from "./newsEnrichment";
 import { fetchCvmCorporateEvents } from "./cvmCorporateEvents";
+import { logger } from "./_core/logger";
 
 export type OfficialNewsItem = {
   headline: string;
@@ -279,10 +280,13 @@ async function fetchFeed(definition: FeedDefinition) {
       ? parseOfficialAtomFeed(xml, definition)
       : parseOfficialFeed(xml, definition);
   } catch (error) {
-    console.warn(
-      `[Editorial] ${definition.sourceName} feed unavailable`,
-      error
-    );
+    logger.warn("editorial-official-feed-unavailable", {
+      sourceName: definition.sourceName,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
     return [];
   }
 }

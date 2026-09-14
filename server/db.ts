@@ -25,6 +25,7 @@ import {
   summarizePortfolioRows,
 } from "./portfolioLogic";
 import { shouldAppendConsentRecord, type ConsentChoice } from "./privacyConsent";
+import { logger } from "./_core/logger";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let seedPromise: Promise<void> | null = null;
@@ -48,7 +49,12 @@ export async function getDb() {
     try {
       _db = drizzle(process.env.DATABASE_URL);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      logger.warn("database-connection-failed", {
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : error,
+      });
       _db = null;
     }
   }
@@ -717,7 +723,12 @@ export async function ensureCatalogSeed() {
       ]);
     })().catch(error => {
       seedPromise = null;
-      console.warn("[Database] Catalog seed skipped:", error);
+      logger.warn("database-catalog-seed-skipped", {
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : error,
+      });
     });
   }
   await seedPromise;
@@ -869,7 +880,15 @@ export async function evaluatePriceAlerts(
         targetPrice: Number(alert.targetPrice),
         condition: alert.condition,
         idempotencyKey: `virtus:price-alert:${alert.id}`,
-      }).catch(error => console.warn("[Alerts] Email delivery failed:", error));
+      }).catch(error =>
+        logger.warn("price-alert-email-delivery-failed", {
+          alertId: alert.id,
+          error:
+            error instanceof Error
+              ? { name: error.name, message: error.message }
+              : error,
+        })
+      );
     }
   }
   return triggered.length;

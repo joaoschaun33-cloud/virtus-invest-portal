@@ -1,5 +1,6 @@
 import { unzipSync } from "fflate";
 import { parseDelimitedLine } from "./delimitedText";
+import { logger } from "./_core/logger";
 
 const B3_ISIN_API =
   "https://sistemaswebb3-listados.b3.com.br/isinProxy/IsinCall";
@@ -89,9 +90,9 @@ async function fetchIssuerText() {
       headers: { Accept: "application/json" },
     });
     if (!indexResponse.ok) {
-      console.warn(
-        `[B3 Reference] download index returned ${indexResponse.status}`
-      );
+      logger.warn("b3-reference-download-index-failed", {
+        status: indexResponse.status,
+      });
       return null;
     }
     const rawIndex = await indexResponse.json();
@@ -100,7 +101,7 @@ async function fetchIssuerText() {
     ) as DownloadIndex;
     const id = Number(index.geralPt?.id);
     if (!Number.isSafeInteger(id)) {
-      console.warn("[B3 Reference] download index has no valid general file");
+      logger.warn("b3-reference-download-index-invalid");
       return null;
     }
     const encodedId = Buffer.from(JSON.stringify(id)).toString("base64");
@@ -112,26 +113,32 @@ async function fetchIssuerText() {
       }
     );
     if (!fileResponse.ok) {
-      console.warn(
-        `[B3 Reference] issuer file returned ${fileResponse.status}`
-      );
+      logger.warn("b3-reference-issuer-file-failed", {
+        status: fileResponse.status,
+      });
       return null;
     }
     const declaredLength = Number(
       fileResponse.headers.get("content-length") ?? 0
     );
     if (declaredLength > MAX_ZIP_BYTES) {
-      console.warn("[B3 Reference] issuer ZIP exceeded the configured limit");
+      logger.warn("b3-reference-issuer-zip-too-large", {
+        declaredLength,
+        maxBytes: MAX_ZIP_BYTES,
+      });
       return null;
     }
     const bytes = new Uint8Array(await fileResponse.arrayBuffer());
     if (bytes.byteLength > MAX_ZIP_BYTES) {
-      console.warn("[B3 Reference] issuer ZIP exceeded the configured limit");
+      logger.warn("b3-reference-issuer-zip-too-large", {
+        actualLength: bytes.byteLength,
+        maxBytes: MAX_ZIP_BYTES,
+      });
       return null;
     }
     const issuerText = decodeIssuerFile(bytes);
     if (!issuerText) {
-      console.warn("[B3 Reference] EMISSOR.TXT was absent or invalid");
+      logger.warn("b3-reference-issuer-file-invalid");
       return null;
     }
     const asOf = index.geralPt?.dataGeracao ?? new Date().toISOString();
@@ -142,7 +149,12 @@ async function fetchIssuerText() {
     };
     return cache;
   } catch (error) {
-    console.warn("[B3 Reference] official issuer source unavailable", error);
+    logger.warn("b3-reference-issuer-source-unavailable", {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
     return null;
   }
 }

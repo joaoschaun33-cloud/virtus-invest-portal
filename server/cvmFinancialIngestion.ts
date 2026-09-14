@@ -5,6 +5,7 @@ import {
   saveCvmFinancialStatements,
 } from "./cvmFinancialRepository";
 import { CircuitBreaker, withRetry } from "./reliability";
+import { logger } from "./_core/logger";
 
 const cvmCircuit = new CircuitBreaker("cvm.financials", 4, 60_000);
 
@@ -62,7 +63,9 @@ export async function runCvmFinancialIngestion(
       await dependencies.save(item.asset.id, statement);
       saved += 1;
     } catch (error) {
-      console.error(`[CVM Ingestion] failed to save ${item.asset.ticker}`, error);
+      logger.error("cvm-ingestion-save-failed", error, {
+        ticker: item.asset.ticker,
+      });
       failures.push(item.asset.ticker);
     }
   }
