@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MarketDataSource } from "@shared/marketData";
+import { useLiveControl } from "@/contexts/LiveControlContext";
 
 type RealtimeQuote = {
   ticker: string;
@@ -14,8 +15,14 @@ const PRODUCTION_REALTIME_URL =
   "wss://virtus-web-ysuazn5yga-rj.a.run.app/api/realtime";
 
 export function useMarketRealtime(tickers: string[]) {
+  const { isLivePaused, markUpdate } = useLiveControl();
   const [quotes, setQuotes] = useState<Record<string, RealtimeQuote>>({});
   const [connected, setConnected] = useState(false);
+  const isPausedRef = useRef(isLivePaused);
+
+  useEffect(() => {
+    isPausedRef.current = isLivePaused;
+  }, [isLivePaused]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -44,10 +51,13 @@ export function useMarketRealtime(tickers: string[]) {
         if (message.type === "ready") {
           setConnected(true);
         } else if (message.type === "quote" && message.quote?.ticker) {
-          setQuotes(previous => ({
-            ...previous,
-            [message.quote!.ticker]: message.quote!,
-          }));
+          if (!isPausedRef.current) {
+            markUpdate();
+            setQuotes(previous => ({
+              ...previous,
+              [message.quote!.ticker]: message.quote!,
+            }));
+          }
         }
       } catch {
         // Ignore malformed market messages without breaking the dashboard.

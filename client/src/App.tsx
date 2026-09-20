@@ -6,6 +6,7 @@ import { ConsentAnalytics } from "@/components/ConsentAnalytics";
 import { RouteMetadata } from "@/components/RouteMetadata";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { LiveControlProvider } from "./contexts/LiveControlContext";
 import { Route, Switch } from "wouter";
 
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -113,18 +114,20 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable>
-        <TooltipProvider>
-          <Toaster />
-          {paletteOpen && (
-            <Suspense fallback={null}>
-              <CommandPalette open onOpenChange={setPaletteOpen} />
-            </Suspense>
-          )}
-          <RouteMetadata />
-          <ConsentAnalytics />
-          <Router />
-          <CookieConsent />
-        </TooltipProvider>
+        <LiveControlProvider>
+          <TooltipProvider>
+            <Toaster />
+            {paletteOpen && (
+              <Suspense fallback={null}>
+                <CommandPalette open onOpenChange={setPaletteOpen} />
+              </Suspense>
+            )}
+            <RouteMetadata />
+            <ConsentAnalytics />
+            <Router />
+            <CookieConsent />
+          </TooltipProvider>
+        </LiveControlProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

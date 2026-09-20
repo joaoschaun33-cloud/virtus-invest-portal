@@ -34,6 +34,7 @@ import {
 import { downloadCsv, printReport } from "@/lib/exporters";
 import PortfolioInsight from "@/components/PortfolioInsight";
 import PortfolioIncome from "@/components/PortfolioIncome";
+import { PortfolioStudioQuant } from "@/components/apex/PortfolioStudioQuant";
 import AuthAccessOptions from "@/components/AuthAccessOptions";
 import { toast } from "sonner";
 import {
@@ -542,6 +543,11 @@ export default function Portfolio() {
                 </div>
               </Panel>
             </div>
+            {positions.length > 0 && (
+              <div className="mt-6">
+                <PortfolioStudioQuant positions={positions} />
+              </div>
+            )}
             <div className="mt-6 grid gap-6 xl:grid-cols-[.78fr_1.22fr]">
               <Panel className="p-5">
                 <div className="flex items-center gap-2">

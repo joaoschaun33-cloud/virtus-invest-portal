@@ -20,6 +20,7 @@ import {
 } from "@/components/apex/ApexPrimitives";
 import { MarketChart } from "@/components/apex/MarketChart";
 import { FinancialHistoryChart } from "@/components/apex/FinancialHistoryChart";
+import { AssetValuationCockpit } from "@/components/apex/AssetValuationCockpit";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -542,6 +543,29 @@ export default function AssetDetail() {
               </Link>
             </Panel>
           </div>
+        </div>
+        <div className="mt-6">
+          <AssetValuationCockpit
+            ticker={ticker}
+            price={lastPrice}
+            peRatio={numberValue(asset?.peRatio)}
+            pbRatio={numberValue(asset?.pbRatio)}
+            dividendYield={numberValue(asset?.dividendYield)}
+            roe={numberValue(asset?.roe)}
+            netMargin={numberValue(asset?.netMargin)}
+            ebitda={
+              advancedAsset?.ebitda ? numberValue(advancedAsset.ebitda) : null
+            }
+            netDebt={
+              advancedAsset?.netDebt ? numberValue(advancedAsset.netDebt) : null
+            }
+            freeCashFlow={
+              advancedAsset?.freeCashFlow
+                ? numberValue(advancedAsset.freeCashFlow)
+                : null
+            }
+            statements={statementsQuery.data}
+          />
         </div>
         {statementsQuery.data &&
           statementsQuery.data.quarterlyHistory.length >= 2 && (

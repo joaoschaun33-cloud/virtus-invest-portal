@@ -8,8 +8,11 @@ import {
   ArrowDownRight,
   Minus,
   Radio,
+  Pause,
+  Play,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLiveControl } from "@/contexts/LiveControlContext";
 import { cn } from "@/lib/utils";
 import {
   formatMarketValue,
@@ -66,6 +69,8 @@ export function PageHeader({
 
 export function AppTopBar({ title = "Visão geral" }: { title?: string }) {
   const { theme, toggleTheme } = useTheme();
+  const { isLivePaused, toggleLivePause } = useLiveControl();
+
   return (
     <header className="sticky top-0 z-30 mb-7 flex items-center justify-between border-b border-border/50 bg-background/78 px-1 py-3 backdrop-blur-xl">
       <div className="flex min-w-0 items-center gap-3">
@@ -80,6 +85,45 @@ export function AppTopBar({ title = "Visão geral" }: { title?: string }) {
         <p className="truncate text-sm font-semibold tracking-tight">{title}</p>
       </div>
       <div className="flex items-center gap-2">
+        {/* Controle WCAG 2.2.2 Pause/Resume Live Feed */}
+        <button
+          type="button"
+          onClick={toggleLivePause}
+          className={cn(
+            "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition",
+            isLivePaused
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+          )}
+          title={
+            isLivePaused
+              ? "Cotações congeladas. Clique para retomar (Alt+P) · WCAG 2.2.2"
+              : "Cotações atualizando ao vivo. Clique para pausar (Alt+P) · WCAG 2.2.2"
+          }
+          aria-label={
+            isLivePaused
+              ? "Retomar atualizações em tempo real"
+              : "Pausar atualizações em tempo real"
+          }
+        >
+          {isLivePaused ? (
+            <>
+              <Play className="h-3 w-3" />
+              <span className="hidden sm:inline">Pausado</span>
+              <span className="inline sm:hidden">Pause</span>
+            </>
+          ) : (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <span className="hidden sm:inline">Ao vivo</span>
+              <Pause className="h-2.5 w-2.5 opacity-60" />
+            </>
+          )}
+        </button>
+
         <button
           type="button"
           className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-3 py-2 text-xs text-muted-foreground transition hover:bg-accent sm:flex"
@@ -117,12 +161,23 @@ export function AppTopBar({ title = "Visão geral" }: { title?: string }) {
   );
 }
 
-export function LiveBadge({ label = "Dados ao vivo" }: { label?: string }) {
+export function LiveBadge({ label }: { label?: string }) {
+  const { isLivePaused } = useLiveControl();
+
+  if (isLivePaused) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        {label ?? "Atualização pausada"}
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
       <Radio className="h-3 w-3" />
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-      {label}
+      {label ?? "Dados ao vivo"}
     </span>
   );
 }

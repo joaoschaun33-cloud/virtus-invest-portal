@@ -30,6 +30,7 @@ import {
 import { useMarketRealtime } from "@/hooks/useMarketRealtime";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
 import { DataProvenance } from "@/components/DataProvenance";
+import { YieldCurveCockpit } from "@/components/macro/YieldCurveCockpit";
 
 const types = [
   "Todos",
@@ -42,7 +43,7 @@ const types = [
   "Forex",
 ];
 
-const tabs = ["Ativos", "Renda Fixa & Tesouro"];
+const tabs = ["Ativos", "Curva de Juros & Macro", "Renda Fixa & Tesouro"];
 
 const assetTypeLabel: Record<string, string> = {
   STOCK: "Ação",
@@ -300,6 +301,8 @@ export default function Markets() {
               </span>
             </div>
           </>
+        ) : tab === "Curva de Juros & Macro" ? (
+          <YieldCurveCockpit />
         ) : (
           <>
             <Panel className="overflow-hidden">

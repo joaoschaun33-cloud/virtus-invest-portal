@@ -396,6 +396,18 @@ export default function Home() {
                 <div className="border-t border-border/60 bg-muted/20 px-5 py-3 text-xs leading-5 text-muted-foreground">
                   {macroBriefQuery.data.summary}
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-primary/5 px-5 py-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>Cockpit Macro Institucional: Estrutura a termo da curva de juros (ETTJ) e prêmio de risco.</span>
+                  </div>
+                  <Link
+                    href="/markets"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                  >
+                    Abrir Curva de Juros & DIs <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
               </>
             ) : (
               <div className="p-5 text-xs text-muted-foreground">

@@ -175,6 +175,7 @@ async function buildAssetSnapshot(ticker: string, interval = "1D") {
 }
 
 import { fetchTreasuryOverview } from "../treasuryData";
+import { getYieldCurveData } from "../yieldCurveData";
 
 export const marketRouter = router({
   assets: publicProcedure
@@ -191,6 +192,7 @@ export const marketRouter = router({
   dataSources: publicProcedure.query(() => getDataSourceGovernance()),
   macroBrief: publicProcedure.query(() => getMacroBrief()),
   treasury: publicProcedure.query(() => fetchTreasuryOverview()),
+  yieldCurve: publicProcedure.query(() => getYieldCurveData()),
   dataQuality: publicProcedure.query(async () => {
     const live = await fetchLiveQuote("PETR4", "STOCK");
     return {
