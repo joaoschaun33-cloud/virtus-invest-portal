@@ -11,9 +11,18 @@ const ALERT_POLL_INTERVAL_MS = 60_000;
  * scoped to assets that users are monitoring, which keeps provider usage tied
  * to customer value rather than to catalog size.
  */
+import { logger } from "./_core/logger";
+
 export function startAlertMonitor() {
-  void runAlertMonitorOnce();
-  return setInterval(() => void runAlertMonitorOnce(), ALERT_POLL_INTERVAL_MS);
+  const safeRun = () => {
+    void runAlertMonitorOnce().catch(error => {
+      logger.warn("alerts.cycle_suppressed_error", {
+        error: error instanceof Error ? error.message : error,
+      });
+    });
+  };
+  safeRun();
+  return setInterval(safeRun, ALERT_POLL_INTERVAL_MS);
 }
 
 /** Executes one alert cycle for Cloud Scheduler or operational checks. */

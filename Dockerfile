@@ -24,5 +24,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 RUN pnpm install --frozen-lockfile --prod && pnpm store prune
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/drizzle ./drizzle
 USER node
 CMD ["node", "dist/index.js"]

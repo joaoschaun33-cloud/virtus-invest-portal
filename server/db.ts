@@ -27,21 +27,51 @@ import {
 import { shouldAppendConsentRecord, type ConsentChoice } from "./privacyConsent";
 import { logger } from "./_core/logger";
 
+import { migrate } from "drizzle-orm/mysql2/migrator";
+import fs from "fs";
+import path from "path";
+
 let _db: ReturnType<typeof drizzle> | null = null;
 let seedPromise: Promise<void> | null = null;
+let migrationPromise: Promise<void> | null = null;
 let skipCatalogSeedForTests = false;
 
 /** Test-only dependency injection; production code never calls these helpers. */
 export function setDbForTests(db: unknown) {
   _db = db as ReturnType<typeof drizzle>;
   seedPromise = Promise.resolve();
+  migrationPromise = Promise.resolve();
   skipCatalogSeedForTests = true;
 }
 
 export function clearDbForTests() {
   _db = null;
   seedPromise = null;
+  migrationPromise = null;
   skipCatalogSeedForTests = false;
+}
+
+export async function runMigrations() {
+  if (skipCatalogSeedForTests) return;
+  const db = await getDb();
+  if (!db) return;
+  if (!migrationPromise) {
+    migrationPromise = (async () => {
+      try {
+        const migrationsFolder = path.resolve(process.cwd(), "drizzle");
+        if (fs.existsSync(migrationsFolder)) {
+          logger.info("database.applying_migrations");
+          await migrate(db, { migrationsFolder });
+          logger.info("database.migrations_applied");
+        }
+      } catch (error) {
+        logger.warn("database.migrations_skipped_or_failed", {
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    })();
+  }
+  await migrationPromise;
 }
 
 export async function getDb() {
@@ -581,7 +611,8 @@ function parseNumber(value: unknown, fallback = 0) {
 }
 
 export async function ensureCatalogSeed() {
-  if (skipCatalogSeedForTests || process.env.NODE_ENV === "production") return;
+  if (skipCatalogSeedForTests) return;
+  await runMigrations();
   if (!seedPromise) {
     seedPromise = (async () => {
       const db = await getDb();
@@ -594,6 +625,7 @@ export async function ensureCatalogSeed() {
       if (missing.length > 0) {
         await db.insert(assets).values(missing);
       }
+      if (process.env.NODE_ENV === "production") return;
       const savedAssets = await db.select().from(assets);
       const now = Date.now();
       const quoteRows = savedAssets.flatMap(asset => {
