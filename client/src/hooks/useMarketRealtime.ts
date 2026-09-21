@@ -30,11 +30,7 @@ export function useMarketRealtime(tickers: string[]) {
       | string
       | undefined;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const fallbackUrl =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1"
-        ? `${protocol}//${window.location.host}/api/realtime`
-        : PRODUCTION_REALTIME_URL;
+    const fallbackUrl = `${protocol}//${window.location.host}/api/realtime`;
     const socket = new WebSocket(
       configuredUrl || fallbackUrl
     );
