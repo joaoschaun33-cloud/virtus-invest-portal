@@ -297,7 +297,7 @@ export default function Markets() {
               <span>{visibleAssets.length} ativos com cobertura</span>
               <span className="text-right">
                 {user ? "Watchlist sincronizada" : "Watchlist deste navegador"}{" "}
-                · brapi.dev · CoinGecko · EODHD · Twelve Data · Finnhub
+                · brapi.dev · Binance · CoinGecko · EODHD · Twelve Data · Finnhub
               </span>
             </div>
           </>

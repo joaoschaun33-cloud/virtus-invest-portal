@@ -10,6 +10,7 @@ export type DataSourceId =
   | "finnhub"
   | "coingecko"
   | "eodhd"
+  | "binance"
   | "virtus"
   | "catalog";
 
@@ -138,6 +139,16 @@ export const DATA_SOURCES = {
     scope:
       "Cotações e histórico de mercados globais; fundamentos dependem do plano",
     website: "https://eodhd.com/",
+  },
+  binance: {
+    id: "binance",
+    name: "Binance",
+    kind: "market-provider",
+    authority: "operational",
+    displayPolicy: "allowed",
+    scope:
+      "Cotações em tempo real e histórico de candlesticks (OHLCV) de criptoativos via API pública Spot",
+    website: "https://www.binance.com/",
   },
   virtus: {
     id: "virtus",

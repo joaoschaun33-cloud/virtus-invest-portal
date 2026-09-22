@@ -16,6 +16,7 @@ const sourceLabels: Record<MarketDataSource, string> = {
   finnhub: "Finnhub",
   coingecko: "CoinGecko",
   eodhd: "EODHD",
+  binance: "Binance",
   catalog: "sem fonte disponível",
   "tesouro-direto": "Tesouro Nacional",
   b3: "B3",

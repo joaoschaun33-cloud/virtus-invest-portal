@@ -4,6 +4,7 @@ export type MarketDataSource =
   | "finnhub"
   | "coingecko"
   | "eodhd"
+  | "binance"
   | "catalog"
   | "tesouro-direto"
   | "b3"
@@ -76,6 +77,7 @@ function marketDataSource(value: unknown): MarketDataSource {
     "finnhub",
     "coingecko",
     "eodhd",
+    "binance",
     "catalog",
     "tesouro-direto",
     "b3",

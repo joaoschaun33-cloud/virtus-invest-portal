@@ -8,6 +8,7 @@ export type ProviderSource =
   | "finnhub"
   | "coingecko"
   | "eodhd"
+  | "binance"
   | "catalog";
 
 export type ProviderQuote = {
@@ -44,9 +45,9 @@ export type ProviderFundamentals = {
   enterpriseValue?: number;
   ebitda?: number;
   netDebt?: number;
-  freeCashFlow?: number;
   earningsGrowth?: number;
   revenueGrowth?: number;
+  freeCashFlow?: number;
   source: Exclude<ProviderSource, "catalog">;
   asOf: string;
 };
@@ -79,6 +80,7 @@ export type ProviderStatus = {
   finnhub: boolean;
   coinGecko: boolean;
   eodhd: boolean;
+  binance: boolean;
   resend: boolean;
 };
 
@@ -123,6 +125,13 @@ export const PROVIDER_COVERAGE: Record<
     calendar: false,
   },
   eodhd: {
+    quotes: true,
+    history: true,
+    fundamentals: false,
+    news: false,
+    calendar: false,
+  },
+  binance: {
     quotes: true,
     history: true,
     fundamentals: false,
@@ -188,7 +197,11 @@ function quoteSymbol(
 }
 
 export function hasLiveQuoteCoverage(ticker: string, assetType: string) {
-  if (assetType.toUpperCase() === "CRYPTO" && coinGeckoId(ticker)) return true;
+  if (
+    assetType.toUpperCase() === "CRYPTO" &&
+    (binanceSymbol(ticker) || coinGeckoId(ticker))
+  )
+    return true;
   if (eodhdSymbol(ticker, assetType)) return true;
   return (["brapi", "twelve-data", "finnhub"] as const).some(provider =>
     Boolean(quoteSymbol(ticker, assetType, provider))
@@ -255,6 +268,36 @@ async function fetchJsonUncached(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+const binanceSymbols: Record<string, string> = {
+  "BTC/USD": "BTCUSDT",
+  BTC: "BTCUSDT",
+  "ETH/USD": "ETHUSDT",
+  ETH: "ETHUSDT",
+  "SOL/USD": "SOLUSDT",
+  SOL: "SOLUSDT",
+  "BTC/BRL": "BTCBRL",
+  "ETH/BRL": "ETHBRL",
+  "SOL/BRL": "SOLBRL",
+};
+
+export function binanceSymbol(ticker: string): string | null {
+  const normalized = ticker.trim().toUpperCase();
+  if (binanceSymbols[normalized]) return binanceSymbols[normalized];
+  if (normalized.endsWith("/USD")) {
+    return `${normalized.replace("/USD", "")}USDT`;
+  }
+  if (normalized.endsWith("/BRL")) {
+    return `${normalized.replace("/BRL", "")}BRL`;
+  }
+  if (normalized.endsWith("USDT") || normalized.endsWith("BRL")) {
+    return normalized;
+  }
+  if (/^[A-Z0-9]{2,10}$/.test(normalized)) {
+    return `${normalized}USDT`;
+  }
+  return null;
 }
 
 const coinGeckoIds: Record<string, string> = {
@@ -485,6 +528,43 @@ async function fetchEodhd(ticker: string, assetType: string) {
   );
 }
 
+async function fetchBinance(
+  ticker: string,
+  assetType: string
+): Promise<ProviderQuote | null> {
+  if (assetType.toUpperCase() !== "CRYPTO") return null;
+  const symbol = binanceSymbol(ticker);
+  if (!symbol) return null;
+  const payload = await fetchJson(
+    `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(symbol)}`,
+    {},
+    20_000
+  );
+  if (!payload || !payload.lastPrice) return null;
+  const price = numberOr(payload.lastPrice);
+  if (!price) return null;
+  const changePercent = optionalNumber(payload.priceChangePercent);
+  const quoteVolume = optionalNumber(payload.quoteVolume);
+  const volume =
+    quoteVolume !== undefined && quoteVolume > 0
+      ? quoteVolume
+      : optionalNumber(payload.volume);
+  const open = optionalNumber(payload.openPrice);
+  const high = optionalNumber(payload.highPrice);
+  const low = optionalNumber(payload.lowPrice);
+  return normalizeQuote(
+    ticker,
+    price,
+    changePercent,
+    volume,
+    open,
+    high,
+    low,
+    "binance",
+    payload.closeTime
+  );
+}
+
 export async function fetchLiveQuote(
   ticker: string,
   assetType: string
@@ -498,6 +578,7 @@ export async function fetchLiveQuote(
     finnhub: () => fetchFinnhub(ticker, assetType),
     coingecko: () => fetchCoinGecko(ticker, assetType),
     eodhd: () => fetchEodhd(ticker, assetType),
+    binance: () => fetchBinance(ticker, assetType),
   };
   const quote = await firstSuccessful(
     marketSourceOrder("quote", { assetType }),
@@ -742,6 +823,42 @@ async function fetchEodhdHistory(
     .slice(-outputsize);
 }
 
+async function fetchBinanceHistory(
+  ticker: string,
+  assetType: string,
+  outputsize = 180
+): Promise<ProviderCandle[]> {
+  if (assetType.toUpperCase() !== "CRYPTO") return [];
+  const symbol = binanceSymbol(ticker);
+  if (!symbol) return [];
+  const limit = Math.min(Math.max(outputsize, 30), 500);
+  const payload = await fetchJson(
+    `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=1d&limit=${limit}`,
+    {},
+    15 * 60_000
+  );
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .map((candle: unknown) => {
+      if (!Array.isArray(candle) || candle.length < 6) return null;
+      const [openTime, open, high, low, close, volume] = candle;
+      return normalizeCandle(
+        "binance",
+        openTime,
+        open,
+        high,
+        low,
+        close,
+        volume
+      );
+    })
+    .filter(
+      (candle: ProviderCandle | null): candle is ProviderCandle =>
+        candle !== null
+    )
+    .slice(-outputsize);
+}
+
 export async function fetchHistoricalCandles(
   ticker: string,
   assetType: string,
@@ -757,6 +874,7 @@ export async function fetchHistoricalCandles(
     finnhub: () => fetchFinnhubHistory(ticker, outputsize),
     coingecko: () => fetchCoinGeckoHistory(ticker, assetType, outputsize),
     eodhd: () => fetchEodhdHistory(ticker, assetType, outputsize),
+    binance: () => fetchBinanceHistory(ticker, assetType, outputsize),
   };
   return (
     (await firstSuccessful(
@@ -896,6 +1014,7 @@ export async function fetchFundamentals(ticker: string, assetType: string) {
     // The validated EODHD plan returns 403 for fundamentals. Keep this adapter
     // disabled until that module is explicitly enabled in configuration.
     eodhd: () => Promise.resolve(null),
+    binance: () => Promise.resolve(null),
   };
   return firstSuccessful(
     marketSourceOrder("fundamentals", { assetType }),
@@ -1106,6 +1225,7 @@ export function getProviderStatus(): ProviderStatus {
     finnhub: Boolean(process.env.FINNHUB_API_KEY),
     coinGecko: Boolean(process.env.COINGECKO_API_KEY),
     eodhd: Boolean(process.env.EODHD_API_TOKEN),
+    binance: true,
     resend: Boolean(
       process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL
     ),

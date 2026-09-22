@@ -11,6 +11,7 @@ describe("market provider configuration", () => {
         finnhub: expect.any(Boolean),
         coinGecko: expect.any(Boolean),
         eodhd: expect.any(Boolean),
+        binance: expect.any(Boolean),
       })
     );
   });
@@ -18,7 +19,15 @@ describe("market provider configuration", () => {
   it("does not expose credential values through the public status", () => {
     const status = getProviderStatus();
     expect(Object.keys(status).sort()).toEqual(
-      ["brapi", "coinGecko", "eodhd", "finnhub", "resend", "twelveData"].sort()
+      [
+        "binance",
+        "brapi",
+        "coinGecko",
+        "eodhd",
+        "finnhub",
+        "resend",
+        "twelveData",
+      ].sort()
     );
     expect(JSON.stringify(status)).not.toMatch(/apikey|token|secret/i);
   });
@@ -53,6 +62,13 @@ describe("market provider configuration", () => {
       calendar: false,
     });
     expect(PROVIDER_COVERAGE.eodhd).toEqual({
+      quotes: true,
+      history: true,
+      fundamentals: false,
+      news: false,
+      calendar: false,
+    });
+    expect(PROVIDER_COVERAGE.binance).toEqual({
       quotes: true,
       history: true,
       fundamentals: false,

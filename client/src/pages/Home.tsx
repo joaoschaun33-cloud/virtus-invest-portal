@@ -201,7 +201,8 @@ export default function Home() {
       providerStatus.data?.twelveData ||
       providerStatus.data?.finnhub ||
       providerStatus.data?.coinGecko ||
-      providerStatus.data?.eodhd
+      providerStatus.data?.eodhd ||
+      providerStatus.data?.binance
   );
   const isDemo = dataQualityQuery.data?.isDemo ?? !hasMarketProvider;
   const isCatalogFallback =

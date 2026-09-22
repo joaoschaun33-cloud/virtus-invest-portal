@@ -5,7 +5,8 @@ export type MarketProviderId =
   | "twelve-data"
   | "finnhub"
   | "coingecko"
-  | "eodhd";
+  | "eodhd"
+  | "binance";
 export type DataCapability =
   | "quote"
   | "history"
@@ -21,6 +22,7 @@ type MarketContext = {
 const B3_ASSET_TYPES = new Set(["STOCK", "REIT", "ETF", "INDEX"]);
 
 const configured = (source: MarketProviderId) => {
+  if (source === "binance") return true;
   if (source === "brapi") return Boolean(process.env.BRAPI_API_KEY);
   if (source === "twelve-data") return Boolean(process.env.TWELVE_DATA_API_KEY);
   if (source === "finnhub") return Boolean(process.env.FINNHUB_API_KEY);
@@ -61,6 +63,7 @@ export function isStoredSourcePubliclyDisplayable(source: unknown) {
     "finnhub",
     "coingecko",
     "eodhd",
+    "binance",
   ];
   if (providers.includes(normalized as MarketProviderId))
     return isSourceEligible(normalized as MarketProviderId);
@@ -81,7 +84,7 @@ export function marketSourceOrder(
   const isCrypto = type === "CRYPTO";
   const isCommodity = type === "COMMODITY";
   const candidates: MarketProviderId[] = isCrypto
-    ? ["coingecko", "eodhd", "twelve-data", "finnhub"]
+    ? ["binance", "coingecko", "eodhd", "twelve-data", "finnhub"]
     : isB3 || isCommodity
       ? ["brapi", "eodhd", "twelve-data", "finnhub"]
       : ["eodhd", "twelve-data", "finnhub"];
@@ -104,6 +107,7 @@ export function getDataSourceGovernance() {
     finnhub: "active",
     coingecko: "active",
     eodhd: "active",
+    binance: "active",
     b3: "active",
     ibge: "active",
     "tesouro-direto": "active",
@@ -118,6 +122,7 @@ export function getDataSourceGovernance() {
       "finnhub",
       "coingecko",
       "eodhd",
+      "binance",
     ].includes(source.id)
       ? (source.id as MarketProviderId)
       : null;
