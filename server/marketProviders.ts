@@ -817,7 +817,9 @@ async function fetchBrapiFundamentals(ticker: string) {
   const totalDebt = optionalNumber(fin.totalDebt);
   const totalCash = optionalNumber(fin.totalCash);
   const netDebt =
-    totalDebt !== null && totalCash !== null ? totalDebt - totalCash : null;
+    typeof totalDebt === "number" && typeof totalCash === "number"
+      ? totalDebt - totalCash
+      : null;
   return normalizeFundamentals(ticker, "brapi", {
     ...quote,
     peRatio: quote.priceEarnings ?? stats.trailingPE,

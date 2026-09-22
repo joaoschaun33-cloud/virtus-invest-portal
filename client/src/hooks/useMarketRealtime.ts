@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MarketDataSource } from "@shared/marketData";
+import type { MarketDataFreshness, MarketDataSource } from "@shared/marketData";
 import { useLiveControl } from "@/contexts/LiveControlContext";
 
 type RealtimeQuote = {
@@ -9,6 +9,8 @@ type RealtimeQuote = {
   volume: number;
   source: MarketDataSource;
   asOf: string;
+  freshness?: MarketDataFreshness;
+  isDemo?: boolean;
 };
 
 const PRODUCTION_REALTIME_URL =
