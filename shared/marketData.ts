@@ -65,7 +65,13 @@ export function catalogQuoteFromAsset(asset: {
     low: null,
     source,
     asOf,
-    freshness: !hasValue ? "unavailable" : isCatalog ? "demo" : "close",
+    freshness: !hasValue
+      ? "unavailable"
+      : isCatalog
+        ? "demo"
+        : source === "binance"
+          ? "delayed"
+          : "close",
     isDemo: hasValue && isCatalog,
   };
 }

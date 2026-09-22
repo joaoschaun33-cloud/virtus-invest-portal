@@ -589,6 +589,88 @@ async function fetchBinance(
   );
 }
 
+export const BINANCE_CRYPTO_PAIRS: Record<string, string> = {
+  "BTC/USD": "BTCUSDT",
+  "ETH/USD": "ETHUSDT",
+  "SOL/USD": "SOLUSDT",
+  "BNB/USD": "BNBUSDT",
+  "XRP/USD": "XRPUSDT",
+  "ADA/USD": "ADAUSDT",
+  "DOGE/USD": "DOGEUSDT",
+  "AVAX/USD": "AVAXUSDT",
+  "LINK/USD": "LINKUSDT",
+  "DOT/USD": "DOTUSDT",
+  "NEAR/USD": "NEARUSDT",
+  "SUI/USD": "SUIUSDT",
+  "LTC/USD": "LTCUSDT",
+  "UNI/USD": "UNIUSDT",
+  "BTC/BRL": "BTCBRL",
+  "ETH/BRL": "ETHBRL",
+  "SOL/BRL": "SOLBRL",
+};
+
+export async function fetchBinanceBatchQuotes(): Promise<ProviderQuote[]> {
+  const symbols = Object.values(BINANCE_CRYPTO_PAIRS);
+  const reverseMap = Object.entries(BINANCE_CRYPTO_PAIRS).reduce<Record<string, string>>(
+    (acc, [ticker, symbol]) => {
+      acc[symbol] = ticker;
+      return acc;
+    },
+    {}
+  );
+  try {
+    const payload = await fetchJson(
+      `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`,
+      {},
+      15_000
+    );
+    if (!Array.isArray(payload)) return [];
+    const quotes: ProviderQuote[] = [];
+    for (const item of payload) {
+      const ticker = reverseMap[item.symbol];
+      if (!ticker) continue;
+      const price = numberOr(item.lastPrice);
+      if (!price) continue;
+      const changePercent = optionalNumber(item.priceChangePercent);
+      const quoteVol = optionalNumber(item.quoteVolume);
+      const volume =
+        quoteVol !== undefined && quoteVol > 0
+          ? quoteVol
+          : optionalNumber(item.volume);
+      const open = optionalNumber(item.openPrice);
+      const high = optionalNumber(item.highPrice);
+      const low = optionalNumber(item.lowPrice);
+      const quote = normalizeQuote(
+        ticker,
+        price,
+        changePercent,
+        volume,
+        open,
+        high,
+        low,
+        "binance",
+        item.closeTime
+      );
+      if (quote) {
+        quotes.push(quote);
+        quoteCache.set(`${ticker.toUpperCase()}|CRYPTO`, {
+          expiresAt: Date.now() + quoteCacheTtlMs,
+          quote,
+        });
+      }
+    }
+    return quotes;
+  } catch (error) {
+    logger.warn("binance-batch-quotes-failed", {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
+    return [];
+  }
+}
+
 export async function fetchLiveQuote(
   ticker: string,
   assetType: string

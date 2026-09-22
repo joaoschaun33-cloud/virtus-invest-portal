@@ -7,6 +7,7 @@ const dbMocks = vi.hoisted(() => ({
   listNews: vi.fn(),
   listEconomicEvents: vi.fn(),
   listDividends: vi.fn(),
+  syncBinanceCryptoQuotes: vi.fn().mockResolvedValue(0),
   updateAssetQuote: vi.fn(),
 }));
 

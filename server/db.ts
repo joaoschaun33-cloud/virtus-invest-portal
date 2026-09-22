@@ -30,6 +30,7 @@ import { logger } from "./_core/logger";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import fs from "fs";
 import path from "path";
+import { fetchBinanceBatchQuotes } from "./marketProviders";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let seedPromise: Promise<void> | null = null;
@@ -205,7 +206,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "64280.10",
     changePercent: "-0.34",
     dayVolume: "28400000000",
@@ -484,7 +485,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "3450.20",
     changePercent: "1.80",
     dayVolume: "14200000000",
@@ -496,7 +497,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "184.60",
     changePercent: "2.40",
     dayVolume: "4800000000",
@@ -508,7 +509,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "786.80",
     changePercent: "1.20",
     dayVolume: "1850000000",
@@ -520,7 +521,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "1.54",
     changePercent: "2.10",
     dayVolume: "2450000000",
@@ -532,7 +533,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "0.25",
     changePercent: "0.85",
     dayVolume: "650000000",
@@ -544,7 +545,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "0.098",
     changePercent: "3.40",
     dayVolume: "980000000",
@@ -556,7 +557,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "10.81",
     changePercent: "1.45",
     dayVolume: "420000000",
@@ -568,7 +569,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "12.94",
     changePercent: "1.10",
     dayVolume: "380000000",
@@ -580,7 +581,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "1.16",
     changePercent: "-0.40",
     dayVolume: "190000000",
@@ -592,7 +593,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "4.60",
     changePercent: "2.80",
     dayVolume: "310000000",
@@ -604,7 +605,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "1.01",
     changePercent: "4.15",
     dayVolume: "540000000",
@@ -616,7 +617,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "60.36",
     changePercent: "0.50",
     dayVolume: "290000000",
@@ -628,7 +629,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "USD",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "8.74",
     changePercent: "1.60",
     dayVolume: "210000000",
@@ -640,7 +641,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "BRL",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "440692.00",
     changePercent: "1.70",
     dayVolume: "2840000000",
@@ -652,7 +653,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "BRL",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "14067.30",
     changePercent: "1.80",
     dayVolume: "1420000000",
@@ -664,7 +665,7 @@ const catalog: InsertAsset[] = [
     exchange: "GLOBAL",
     currency: "BRL",
     sector: "Cripto",
-    source: "catalog",
+    source: "binance",
     lastPrice: "601.60",
     changePercent: "2.40",
     dayVolume: "480000000",
@@ -793,6 +794,7 @@ export async function ensureCatalogSeed() {
       if (missing.length > 0) {
         await db.insert(assets).values(missing);
       }
+      await syncBinanceCryptoQuotes().catch(() => {});
       if (process.env.NODE_ENV === "production") return;
       const savedAssets = await db.select().from(assets);
       const now = Date.now();
@@ -1040,6 +1042,44 @@ export async function updateAssetQuote(
       });
   }
   await evaluatePriceAlerts(assetId, quote.price);
+}
+
+export async function syncBinanceCryptoQuotes(): Promise<number> {
+  if (skipCatalogSeedForTests) return 0;
+  try {
+    const batchQuotes = await fetchBinanceBatchQuotes();
+    if (!batchQuotes.length) return 0;
+
+    const db = await getDb();
+    if (!db) return batchQuotes.length;
+
+    for (const q of batchQuotes) {
+      try {
+        await db
+          .update(assets)
+          .set({
+            lastPrice: q.price < 1 ? q.price.toFixed(4) : q.price.toFixed(2),
+            changePercent:
+              q.changePercent !== null ? q.changePercent.toFixed(2) : null,
+            dayVolume: q.volume !== null ? q.volume.toFixed(0) : null,
+            source: "binance",
+            updatedAt: new Date(q.asOf),
+          })
+          .where(eq(assets.ticker, q.ticker));
+      } catch {
+        // Continue updating remaining assets
+      }
+    }
+    return batchQuotes.length;
+  } catch (error) {
+    logger.warn("sync-binance-crypto-failed", {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
+    return 0;
+  }
 }
 
 export async function evaluatePriceAlerts(

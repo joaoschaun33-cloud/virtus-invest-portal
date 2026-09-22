@@ -30,6 +30,7 @@ import {
   listDividends,
   listEconomicEvents,
   listNews,
+  syncBinanceCryptoQuotes,
   updateAssetQuote,
 } from "../db";
 import { catalogQuoteFromAsset } from "../../shared/marketData";
@@ -56,11 +57,18 @@ const dynamicMetric = (asset: unknown, key: string) =>
   metricNumber((asset as Record<string, unknown>)[key]);
 const quoteRefreshes = new Map<string, number>();
 const MIN_REFRESH_INTERVAL_MS = 12_000;
+let lastCryptoSync = 0;
+const CRYPTO_SYNC_COOLDOWN_MS = 25_000;
 
 async function listAssetsWithLiveQuotes(input?: {
   search?: string;
   assetType?: string;
 }): Promise<AssetSnapshot[]> {
+  const isCryptoQuery = !input?.assetType || input.assetType.toUpperCase() === "CRYPTO";
+  if (isCryptoQuery && Date.now() - lastCryptoSync > CRYPTO_SYNC_COOLDOWN_MS) {
+    lastCryptoSync = Date.now();
+    await syncBinanceCryptoQuotes().catch(() => {});
+  }
   const baseAssets = await listAssets(input);
   // Catalog screens use the official persisted close. Live provider calls are
   // reserved for an explicit asset detail request, avoiding a quota burst that
