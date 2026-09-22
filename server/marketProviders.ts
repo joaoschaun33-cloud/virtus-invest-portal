@@ -193,6 +193,8 @@ function quoteSymbol(
     ["FOREX", "CRYPTO"].includes(normalizedType)
   )
     return normalizedTicker;
+  if (provider === "binance" && normalizedType === "CRYPTO")
+    return binanceSymbol(ticker);
   return null;
 }
 
@@ -277,6 +279,28 @@ const binanceSymbols: Record<string, string> = {
   ETH: "ETHUSDT",
   "SOL/USD": "SOLUSDT",
   SOL: "SOLUSDT",
+  "BNB/USD": "BNBUSDT",
+  BNB: "BNBUSDT",
+  "XRP/USD": "XRPUSDT",
+  XRP: "XRPUSDT",
+  "ADA/USD": "ADAUSDT",
+  ADA: "ADAUSDT",
+  "DOGE/USD": "DOGEUSDT",
+  DOGE: "DOGEUSDT",
+  "AVAX/USD": "AVAXUSDT",
+  AVAX: "AVAXUSDT",
+  "LINK/USD": "LINKUSDT",
+  LINK: "LINKUSDT",
+  "DOT/USD": "DOTUSDT",
+  DOT: "DOTUSDT",
+  "NEAR/USD": "NEARUSDT",
+  NEAR: "NEARUSDT",
+  "SUI/USD": "SUIUSDT",
+  SUI: "SUIUSDT",
+  "LTC/USD": "LTCUSDT",
+  LTC: "LTCUSDT",
+  "UNI/USD": "UNIUSDT",
+  UNI: "UNIUSDT",
   "BTC/BRL": "BTCBRL",
   "ETH/BRL": "ETHBRL",
   "SOL/BRL": "SOLBRL",
