@@ -1,7 +1,7 @@
 import type { Server } from "http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { fetchLiveQuote } from "./marketProviders";
-import { getAssetByTicker } from "./db";
+import { getAssetByTicker, updateAssetQuote } from "./db";
 
 const defaultTickers = ["IBOV", "SPX", "IXIC", "BTC/USD", "BZ=F"];
 const MAX_CLIENTS = 250;
@@ -24,8 +24,21 @@ export function registerMarketRealtime(server: Server) {
     if (!asset) return null;
     const value = await fetchLiveQuote(asset.ticker, asset.assetType);
     quoteCache.set(ticker, { value, fetchedAt: Date.now() });
+    if (value && value.source !== "catalog") {
+      void updateAssetQuote(asset.id, value).catch(() => {});
+    }
     return value;
   };
+
+  void (async () => {
+    for (const ticker of defaultTickers) {
+      try {
+        await getQuote(ticker);
+      } catch {
+        // Continue on individual ticker failures
+      }
+    }
+  })();
 
   const broadcast = async () => {
     const clientList = Array.from(clients);

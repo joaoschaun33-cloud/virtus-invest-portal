@@ -370,7 +370,8 @@ async function fetchBrapiPayload(ticker: string, extra = "") {
 }
 
 async function fetchBrapi(ticker: string, assetType: string) {
-  const symbol = quoteSymbol(ticker, assetType, "brapi");
+  let symbol = quoteSymbol(ticker, assetType, "brapi");
+  if (!symbol && ticker.toUpperCase() === "BZ=F") symbol = "BZ=F";
   if (!symbol) return null;
   const payload = await fetchBrapiPayload(symbol);
   const quote = payload?.results?.[0];
@@ -455,7 +456,9 @@ async function fetchCoinGecko(ticker: string, assetType: string) {
 
 async function fetchEodhd(ticker: string, assetType: string) {
   const token = process.env.EODHD_API_TOKEN;
-  const symbol = eodhdSymbol(ticker, assetType);
+  let symbol = eodhdSymbol(ticker, assetType);
+  if (!symbol && ticker.toUpperCase() === "SPX") symbol = "GSPC.INDX";
+  if (!symbol && ticker.toUpperCase() === "IXIC") symbol = "IXIC.INDX";
   if (!token || !symbol) return null;
   const payload = await fetchJson(
     `https://eodhd.com/api/real-time/${encodeURIComponent(symbol)}?api_token=${encodeURIComponent(token)}&fmt=json`,
@@ -802,8 +805,33 @@ function normalizeFundamentals(
 }
 
 async function fetchBrapiFundamentals(ticker: string) {
-  const quote = (await fetchBrapiPayload(ticker))?.results?.[0];
-  return quote ? normalizeFundamentals(ticker, "brapi", quote) : null;
+  const quote = (
+    await fetchBrapiPayload(
+      ticker,
+      "&modules=financialData,defaultKeyStatistics"
+    )
+  )?.results?.[0];
+  if (!quote) return null;
+  const fin = (quote.financialData ?? {}) as Record<string, unknown>;
+  const stats = (quote.defaultKeyStatistics ?? {}) as Record<string, unknown>;
+  const totalDebt = optionalNumber(fin.totalDebt);
+  const totalCash = optionalNumber(fin.totalCash);
+  const netDebt =
+    totalDebt !== null && totalCash !== null ? totalDebt - totalCash : null;
+  return normalizeFundamentals(ticker, "brapi", {
+    ...quote,
+    peRatio: quote.priceEarnings ?? stats.trailingPE,
+    pbRatio: quote.priceToBook ?? stats.priceToBook,
+    dividendYield: quote.dividendYield ?? stats.dividendYield ?? stats.yield,
+    roe: fin.returnOnEquity ?? stats.returnOnEquity,
+    netMargin: fin.profitMargins ?? stats.profitMargins,
+    enterpriseValue: stats.enterpriseValue,
+    ebitda: fin.ebitda,
+    netDebt,
+    freeCashFlow: fin.freeCashflow,
+    earningsGrowth: fin.earningsGrowth ?? stats.earningsQuarterlyGrowth,
+    revenueGrowth: fin.revenueGrowth,
+  });
 }
 
 async function fetchTwelveDataFundamentals(ticker: string) {

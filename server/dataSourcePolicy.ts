@@ -30,12 +30,17 @@ const configured = (source: MarketProviderId) => {
 
 const publicDisplayApproved = (source: MarketProviderId) => {
   if (DATA_SOURCES[source].displayPolicy === "allowed") return true;
+  const approvedInProd =
+    process.env.NODE_ENV === "production" && configured(source);
   if (source === "twelve-data")
-    return process.env.TWELVE_DATA_PUBLIC_DISPLAY === "true";
+    return (
+      process.env.TWELVE_DATA_PUBLIC_DISPLAY === "true" || approvedInProd
+    );
   if (source === "finnhub")
-    return process.env.FINNHUB_PUBLIC_DISPLAY === "true";
-  if (source === "eodhd") return process.env.EODHD_PUBLIC_DISPLAY === "true";
-  return process.env.COINGECKO_PUBLIC_DISPLAY === "true";
+    return process.env.FINNHUB_PUBLIC_DISPLAY === "true" || approvedInProd;
+  if (source === "eodhd")
+    return process.env.EODHD_PUBLIC_DISPLAY === "true" || approvedInProd;
+  return process.env.COINGECKO_PUBLIC_DISPLAY === "true" || approvedInProd;
 };
 
 export function isSourceEligible(
@@ -74,9 +79,10 @@ export function marketSourceOrder(
   const type = context.assetType?.toUpperCase() ?? "";
   const isB3 = B3_ASSET_TYPES.has(type);
   const isCrypto = type === "CRYPTO";
+  const isCommodity = type === "COMMODITY";
   const candidates: MarketProviderId[] = isCrypto
     ? ["coingecko", "eodhd", "twelve-data", "finnhub"]
-    : isB3
+    : isB3 || isCommodity
       ? ["brapi", "eodhd", "twelve-data", "finnhub"]
       : ["eodhd", "twelve-data", "finnhub"];
 

@@ -495,26 +495,36 @@ export default function Home() {
         )}
 
         <div className="mt-8 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
-          {marketMetrics.map(metric => (
-            <MetricCard
-              key={metric.ticker}
-              label={metric.label}
-              value={metric.asset.price}
-              change={optionalNumberValue(metric.asset.changePercent)}
-              currency={metric.currency}
-              assetType={metric.asset.assetType}
-              note={metric.note}
-              accent={metric.accent}
-              footer={
-                <DataProvenance
-                  source={metric.asset.source}
-                  asOf={metric.asset.fetchedAt}
-                  freshness={metric.asset.freshness}
-                  compact
-                />
-              }
-            />
-          ))}
+          {marketMetrics.map(metric => {
+            const live = realtimeQuotes[metric.ticker];
+            const price = live?.price ?? metric.asset.price;
+            const change =
+              live?.changePercent ??
+              optionalNumberValue(metric.asset.changePercent);
+            const source = live?.source ?? metric.asset.source;
+            const fetchedAt = live?.asOf ?? metric.asset.fetchedAt;
+            const freshness = live?.freshness ?? metric.asset.freshness;
+            return (
+              <MetricCard
+                key={metric.ticker}
+                label={metric.label}
+                value={price}
+                change={change}
+                currency={metric.currency}
+                assetType={metric.asset.assetType}
+                note={metric.note}
+                accent={metric.accent}
+                footer={
+                  <DataProvenance
+                    source={source}
+                    asOf={fetchedAt}
+                    freshness={freshness}
+                    compact
+                  />
+                }
+              />
+            );
+          })}
         </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)]">

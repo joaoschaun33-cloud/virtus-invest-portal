@@ -41,20 +41,37 @@ export default function FundamentalAnalysis() {
     const pe = number(snapshot.asset.peRatio);
     const pb = number(snapshot.asset.pbRatio);
     const dy = number(snapshot.asset.dividendYield);
-    const ebitda = number(advancedAsset.ebitda); const netDebt = number(advancedAsset.netDebt);
-    const normalizedPercent = (value: number | null) => value === null ? null : Math.abs(value) <= 1 ? value * 100 : value;
+    const ebitda = number(advancedAsset.ebitda);
+    const netDebt = number(advancedAsset.netDebt);
+    const normalizedPercent = (value: number | null) =>
+      value === null ? null : Math.abs(value) <= 1 ? value * 100 : value;
+    const growthVal =
+      normalizedPercent(number(advancedAsset.earningsGrowth)) ??
+      normalizedPercent(number(advancedAsset.revenueGrowth));
+    const roeVal = normalizedPercent(number(snapshot.asset.roe));
+    const marginVal = normalizedPercent(number(snapshot.asset.netMargin));
+    const debtEbitdaVal =
+      ebitda && netDebt !== null && ebitda !== 0 ? netDebt / ebitda : null;
     const next: Fields = {
-      price: price === null ? "" : String(price), pe: pe === null ? "" : String(pe),
-      eps: price && pe && pe > 0 ? String(price / pe) : "",
-      bvps: price && pb && pb > 0 ? String(price / pb) : "",
-      dividend: price && dy ? String(price * normalizedPercent(dy)! / 100) : "",
-      growth: String(normalizedPercent(number(advancedAsset.earningsGrowth)) ?? normalizedPercent(number(advancedAsset.revenueGrowth)) ?? ""),
-      roe: String(normalizedPercent(number(snapshot.asset.roe)) ?? ""),
-      margin: String(normalizedPercent(number(snapshot.asset.netMargin)) ?? ""),
-      debtEbitda: ebitda && netDebt !== null ? String(netDebt / ebitda) : "",
+      price: price === null ? "" : String(price),
+      pe: pe === null ? "" : String(Number(pe.toFixed(2))),
+      eps: price && pe && pe > 0 ? String(Number((price / pe).toFixed(2))) : "",
+      bvps: price && pb && pb > 0 ? String(Number((price / pb).toFixed(2))) : "",
+      dividend:
+        price && dy
+          ? String(Number(((price * (normalizedPercent(dy) ?? 0)) / 100).toFixed(2)))
+          : "",
+      growth: growthVal !== null ? String(Number(growthVal.toFixed(2))) : "",
+      roe: roeVal !== null ? String(Number(roeVal.toFixed(2))) : "",
+      margin: marginVal !== null ? String(Number(marginVal.toFixed(2))) : "",
+      debtEbitda:
+        debtEbitdaVal !== null ? String(Number(debtEbitdaVal.toFixed(2))) : "",
     };
     setFields(next);
-  }, [advancedAsset, snapshot]);
+    if (growthVal !== null) {
+      setProfitTrend(growthVal > 0 ? "yes" : "no");
+    }
+  }, [snapshot]);
 
   useEffect(() => {
     if (query.isError && submitted)
