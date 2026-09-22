@@ -234,71 +234,123 @@ export default function AssetDetail() {
             />
           </div>
         )}
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,.7fr)]">
-          <Panel className="overflow-hidden">
-            <div className="flex flex-col gap-4 border-b border-border/60 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl font-semibold tracking-[-.05em]">
-                    {formatMarketValue(
-                      lastPrice,
-                      asset?.assetType ?? "STOCK",
-                      asset?.currency ?? "BRL"
-                    )}
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lastChange === null ? "bg-muted text-muted-foreground" : lastChange >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/10 text-rose-600 dark:text-rose-300"}`}
-                  >
-                    {lastChange !== null && lastChange >= 0 ? "+" : ""}
-                    {formatPercent(lastChange)}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Cotação canônica; o gráfico abaixo é uma série histórica
-                  separada.
-                </p>
-              </div>
-              <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
-                {periods.map(period => (
-                  <button
-                    key={period}
-                    onClick={() => setInterval(period)}
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${interval === period ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {period}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="px-4 pb-3 pt-5">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
-                  {(["line", "candle"] as const).map(item => (
-                    <button
-                      key={item}
-                      onClick={() => setMode(item)}
-                      className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${mode === item ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,.7fr)] items-start">
+          <div className="space-y-6">
+            <Panel className="overflow-hidden">
+              <div className="flex flex-col gap-4 border-b border-border/60 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-semibold tracking-[-.05em]">
+                      {formatMarketValue(
+                        lastPrice,
+                        asset?.assetType ?? "STOCK",
+                        asset?.currency ?? "BRL"
+                      )}
+                    </span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lastChange === null ? "bg-muted text-muted-foreground" : lastChange >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/10 text-rose-600 dark:text-rose-300"}`}
                     >
-                      {item === "line" ? "Linha" : "Candlestick"}
+                      {lastChange !== null && lastChange >= 0 ? "+" : ""}
+                      {formatPercent(lastChange)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Cotação canônica; o gráfico abaixo é uma série histórica
+                    separada.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
+                  {periods.map(period => (
+                    <button
+                      key={period}
+                      onClick={() => setInterval(period)}
+                      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${interval === period ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {period}
                     </button>
                   ))}
                 </div>
-                <div className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex">
-                  <span>MM20</span>
-                  <span>MM200</span>
-                  <span>RSI</span>
-                  <span>Volume</span>
-                </div>
               </div>
-              {snapshot?.quotes?.length ? (
-                <MarketChart data={snapshot.quotes} mode={mode} />
-              ) : (
-                <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
-                  Histórico oficial indisponível para este período.
+              <div className="px-4 pb-3 pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
+                    {(["line", "candle"] as const).map(item => (
+                      <button
+                        key={item}
+                        onClick={() => setMode(item)}
+                        className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${mode === item ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                      >
+                        {item === "line" ? "Linha" : "Candlestick"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex">
+                    <span>MM20</span>
+                    <span>MM200</span>
+                    <span>RSI</span>
+                    <span>Volume</span>
+                  </div>
                 </div>
-              )}
+                {snapshot?.quotes?.length ? (
+                  <MarketChart data={snapshot.quotes} mode={mode} />
+                ) : (
+                  <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
+                    Histórico oficial indisponível para este período.
+                  </div>
+                )}
+              </div>
+            </Panel>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="metric-card">
+                <p className="text-xs text-muted-foreground">Abertura</p>
+                <p className="mt-2 text-xl font-semibold">
+                  {formatPrice(snapshot?.quote.open, asset?.currency ?? "BRL")}
+                </p>
+              </div>
+              <div className="metric-card">
+                <p className="text-xs text-muted-foreground">Máxima da cotação</p>
+                <p className="mt-2 text-xl font-semibold">
+                  {formatPrice(snapshot?.quote.high, asset?.currency ?? "BRL")}
+                </p>
+              </div>
+              <div className="metric-card">
+                <p className="text-xs text-muted-foreground">Volume negociado</p>
+                <p className="mt-2 text-xl font-semibold">
+                  {formatCompact(snapshot?.quote.volume)}
+                </p>
+              </div>
             </div>
-          </Panel>
+
+            {statementsQuery.data &&
+              statementsQuery.data.quarterlyHistory.length >= 2 && (
+                <Panel className="overflow-hidden">
+                  <div className="border-b border-border/60 px-5 py-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-primary">
+                      Evolução financeira
+                    </p>
+                    <h2 className="mt-2 section-heading">
+                      Receita, lucro e margem por trimestre
+                    </h2>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      Períodos trimestrais e comparativos explicitamente publicados
+                      pela companhia no arquivo {statementsQuery.data.filing}{" "}
+                      consolidado da CVM.
+                    </p>
+                  </div>
+                  <div className="p-4 sm:p-5">
+                    <FinancialHistoryChart
+                      data={statementsQuery.data.quarterlyHistory}
+                    />
+                    <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+                      Barras em reais; a linha representa a margem líquida calculada
+                      pela Virtus. Valores acumulados no ano não são somados nem
+                      tratados como trimestre.
+                    </p>
+                  </div>
+                </Panel>
+              )}
+          </div>
           <div className="space-y-6">
             <Panel className="p-5">
               <div className="flex items-center justify-between">
@@ -566,54 +618,6 @@ export default function AssetDetail() {
             }
             statements={statementsQuery.data}
           />
-        </div>
-        {statementsQuery.data &&
-          statementsQuery.data.quarterlyHistory.length >= 2 && (
-            <Panel className="mt-6 overflow-hidden">
-              <div className="border-b border-border/60 px-5 py-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-primary">
-                  Evolução financeira
-                </p>
-                <h2 className="mt-2 section-heading">
-                  Receita, lucro e margem por trimestre
-                </h2>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Períodos trimestrais e comparativos explicitamente publicados
-                  pela companhia no arquivo {statementsQuery.data.filing}{" "}
-                  consolidado da CVM.
-                </p>
-              </div>
-              <div className="p-4 sm:p-5">
-                <FinancialHistoryChart
-                  data={statementsQuery.data.quarterlyHistory}
-                />
-                <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
-                  Barras em reais; a linha representa a margem líquida calculada
-                  pela Virtus. Valores acumulados no ano não são somados nem
-                  tratados como trimestre.
-                </p>
-              </div>
-            </Panel>
-          )}
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="metric-card">
-            <p className="text-xs text-muted-foreground">Abertura</p>
-            <p className="mt-2 text-xl font-semibold">
-              {formatPrice(snapshot?.quote.open, asset?.currency ?? "BRL")}
-            </p>
-          </div>
-          <div className="metric-card">
-            <p className="text-xs text-muted-foreground">Máxima da cotação</p>
-            <p className="mt-2 text-xl font-semibold">
-              {formatPrice(snapshot?.quote.high, asset?.currency ?? "BRL")}
-            </p>
-          </div>
-          <div className="metric-card">
-            <p className="text-xs text-muted-foreground">Volume negociado</p>
-            <p className="mt-2 text-xl font-semibold">
-              {formatCompact(snapshot?.quote.volume)}
-            </p>
-          </div>
         </div>
       </div>
     </DashboardLayout>
