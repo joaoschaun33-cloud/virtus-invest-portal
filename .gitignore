@@ -72,3 +72,6 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# Next.js web layer scratch
+web/

@@ -20,6 +20,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { formatPercent, formatPrice, numberValue } from "@/lib/formatters";
 import { trackProductEvent } from "@/lib/analytics";
+import { useVirtualList } from "@/hooks/useVirtualList";
 
 export default function Screener() {
   const [assetType, setAssetType] = useState("Ação");
@@ -73,6 +74,13 @@ export default function Screener() {
     ]
   );
   const query = trpc.market.screener.useQuery(input);
+  const results = query.data ?? [];
+  const isVirtualized = results.length > 20;
+  const { containerRef, virtualItems, totalHeight } = useVirtualList({
+    items: results,
+    itemHeight: 114,
+    overscan: 4,
+  });
 
   function clear() {
     setAssetType("Ação");
@@ -243,77 +251,173 @@ export default function Screener() {
               <span>ROE</span>
               <span>Margem</span>
             </div>
-            <div className="divide-y divide-border/60">
-              {(query.data ?? []).map(asset => (
-                <Link
-                  key={asset.id}
-                  href={`/asset/${encodeURIComponent(asset.ticker)}`}
-                  onClick={() => trackProductEvent("screener_result_opened", { ticker: asset.ticker, asset_type: asset.assetType })}
-                  className="grid gap-3 px-4 py-4 transition hover:bg-accent/50 md:grid-cols-[1.4fr_repeat(5,1fr)] md:items-center md:gap-4 md:px-5"
+            {results.length > 0 ? (
+              isVirtualized ? (
+                <div
+                  ref={containerRef}
+                  className="max-h-[720px] overflow-y-auto relative divide-y divide-border/60"
                 >
-                  <div>
-                    <p className="text-sm font-semibold">{asset.ticker}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {asset.name}
-                    </p>
+                  <div
+                    style={{
+                      height: `${totalHeight}px`,
+                      position: "relative",
+                      width: "100%",
+                    }}
+                  >
+                    {virtualItems.map(({ item: asset, offsetTop }) => (
+                      <div
+                        key={asset.id}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${offsetTop}px)`,
+                        }}
+                      >
+                        <Link
+                          href={`/asset/${encodeURIComponent(asset.ticker)}`}
+                          onClick={() =>
+                            trackProductEvent("screener_result_opened", {
+                              ticker: asset.ticker,
+                              asset_type: asset.assetType,
+                            })
+                          }
+                          className="grid gap-3 px-4 py-4 transition hover:bg-accent/50 md:grid-cols-[1.4fr_repeat(5,1fr)] md:items-center md:gap-4 md:px-5 border-b border-border/60"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold">{asset.ticker}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {asset.name}
+                            </p>
+                          </div>
+                          <MetricValue value={asset.peRatio} />
+                          <MetricValue value={asset.pbRatio} />
+                          <MetricValue value={asset.dividendYield} suffix="%" good />
+                          <MetricValue value={asset.roe} suffix="%" good />
+                          <MetricValue value={asset.netMargin} suffix="%" good />
+                          <div className="col-span-full flex flex-wrap gap-x-4 gap-y-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+                            <span>
+                              EBITDA:{" "}
+                              <MetricValue
+                                value={(asset as Record<string, unknown>).ebitda}
+                              />
+                            </span>
+                            <span>
+                              Dívida líquida:{" "}
+                              <MetricValue
+                                value={(asset as Record<string, unknown>).netDebt}
+                              />
+                            </span>
+                            <span>
+                              Lucro:{" "}
+                              <MetricValue
+                                value={
+                                  (asset as Record<string, unknown>).earningsGrowth
+                                }
+                                suffix="%"
+                                good
+                              />
+                            </span>
+                            <span>
+                              Receita:{" "}
+                              <MetricValue
+                                value={(asset as Record<string, unknown>).revenueGrowth}
+                                suffix="%"
+                                good
+                              />
+                            </span>
+                            <span>
+                              Fundamentos:{" "}
+                              {String(
+                                (asset as Record<string, unknown>).fundamentalsSource ??
+                                  "procedência não exibível"
+                              )}
+                            </span>
+                          </div>
+                        </Link>
+                      </div>
+                    ))}
                   </div>
-                  <MetricValue value={asset.peRatio} />
-                  <MetricValue value={asset.pbRatio} />
-                  <MetricValue value={asset.dividendYield} suffix="%" good />
-                  <MetricValue value={asset.roe} suffix="%" good />
-                  <MetricValue value={asset.netMargin} suffix="%" good />
-                  <div className="col-span-full flex flex-wrap gap-x-4 gap-y-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-                    <span>
-                      EBITDA:{" "}
-                      <MetricValue
-                        value={(asset as Record<string, unknown>).ebitda}
-                      />
-                    </span>
-                    <span>
-                      Dívida líquida:{" "}
-                      <MetricValue
-                        value={(asset as Record<string, unknown>).netDebt}
-                      />
-                    </span>
-                    <span>
-                      Lucro:{" "}
-                      <MetricValue
-                        value={
-                          (asset as Record<string, unknown>).earningsGrowth
-                        }
-                        suffix="%"
-                        good
-                      />
-                    </span>
-                    <span>
-                      Receita:{" "}
-                      <MetricValue
-                        value={(asset as Record<string, unknown>).revenueGrowth}
-                        suffix="%"
-                        good
-                      />
-                    </span>
-                    <span>
-                      Fundamentos:{" "}
-                      {String(
-                        (asset as Record<string, unknown>).fundamentalsSource ??
-                          "procedência não exibível"
-                      )}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-              {!query.data?.length && (
-                <div className="p-12 text-center">
-                  <p className="text-sm font-semibold">
-                    Nenhum resultado com estes filtros
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Ajuste os limites e tente novamente.
-                  </p>
                 </div>
-              )}
-            </div>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {results.map(asset => (
+                    <Link
+                      key={asset.id}
+                      href={`/asset/${encodeURIComponent(asset.ticker)}`}
+                      onClick={() =>
+                        trackProductEvent("screener_result_opened", {
+                          ticker: asset.ticker,
+                          asset_type: asset.assetType,
+                        })
+                      }
+                      className="grid gap-3 px-4 py-4 transition hover:bg-accent/50 md:grid-cols-[1.4fr_repeat(5,1fr)] md:items-center md:gap-4 md:px-5"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold">{asset.ticker}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {asset.name}
+                        </p>
+                      </div>
+                      <MetricValue value={asset.peRatio} />
+                      <MetricValue value={asset.pbRatio} />
+                      <MetricValue value={asset.dividendYield} suffix="%" good />
+                      <MetricValue value={asset.roe} suffix="%" good />
+                      <MetricValue value={asset.netMargin} suffix="%" good />
+                      <div className="col-span-full flex flex-wrap gap-x-4 gap-y-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+                        <span>
+                          EBITDA:{" "}
+                          <MetricValue
+                            value={(asset as Record<string, unknown>).ebitda}
+                          />
+                        </span>
+                        <span>
+                          Dívida líquida:{" "}
+                          <MetricValue
+                            value={(asset as Record<string, unknown>).netDebt}
+                          />
+                        </span>
+                        <span>
+                          Lucro:{" "}
+                          <MetricValue
+                            value={
+                              (asset as Record<string, unknown>).earningsGrowth
+                            }
+                            suffix="%"
+                            good
+                          />
+                        </span>
+                        <span>
+                          Receita:{" "}
+                          <MetricValue
+                            value={(asset as Record<string, unknown>).revenueGrowth}
+                            suffix="%"
+                            good
+                          />
+                        </span>
+                        <span>
+                          Fundamentos:{" "}
+                          {String(
+                            (asset as Record<string, unknown>).fundamentalsSource ??
+                              "procedência não exibível"
+                          )}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="p-12 text-center">
+                <p className="text-sm font-semibold">
+                  Nenhum resultado com estes filtros
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ajuste os limites e tente novamente.
+                </p>
+              </div>
+            )}
           </Panel>
         </div>
       </div>

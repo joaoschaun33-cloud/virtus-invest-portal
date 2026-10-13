@@ -7,7 +7,8 @@ import { RouteMetadata } from "@/components/RouteMetadata";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LiveControlProvider } from "./contexts/LiveControlContext";
-import { Route, Switch } from "wouter";
+import { Route, Router as WouterRouter, Switch } from "wouter";
+import { useViewTransitionLocation } from "@/lib/useViewTransitionLocation";
 
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Home = lazy(() => import("@/pages/Home"));
@@ -66,29 +67,31 @@ function RouteFallback() {
 
 function Router() {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/markets" component={Markets} />
-        <Route path="/asset/:ticker" component={AssetDetail} />
-        <Route path="/news" component={News} />
-        <Route path="/screener" component={Screener} />
-        <Route path="/compare" component={Compare} />
-        <Route path="/calculators" component={Calculators} />
-        <Route path="/guia" component={Guide} />
-        <Route path="/analise" component={FundamentalAnalysis} />
-        <Route path="/portfolio" component={Portfolio} />
-        <Route path="/alerts" component={Alerts} />
-        <Route path="/trust" component={Trust} />
-        <Route path="/editorial" component={Editorial} />
-        <Route path="/privacy" component={Legal} />
-        <Route path="/terms" component={Legal} />
-        <Route path="/cookies" component={Legal} />
-        <Route path="/auth/finish" component={AuthFinish} />
-        <Route path="/404" component={NotFound} />
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <WouterRouter hook={useViewTransitionLocation}>
+      <Suspense fallback={<RouteFallback />}>
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/markets" component={Markets} />
+          <Route path="/asset/:ticker" component={AssetDetail} />
+          <Route path="/news" component={News} />
+          <Route path="/screener" component={Screener} />
+          <Route path="/compare" component={Compare} />
+          <Route path="/calculators" component={Calculators} />
+          <Route path="/guia" component={Guide} />
+          <Route path="/analise" component={FundamentalAnalysis} />
+          <Route path="/portfolio" component={Portfolio} />
+          <Route path="/alerts" component={Alerts} />
+          <Route path="/trust" component={Trust} />
+          <Route path="/editorial" component={Editorial} />
+          <Route path="/privacy" component={Legal} />
+          <Route path="/terms" component={Legal} />
+          <Route path="/cookies" component={Legal} />
+          <Route path="/auth/finish" component={AuthFinish} />
+          <Route path="/404" component={NotFound} />
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
+    </WouterRouter>
   );
 }
 

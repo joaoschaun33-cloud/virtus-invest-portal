@@ -42,6 +42,7 @@ import {
 import { useAuth } from "@/_core/hooks/useAuth";
 import { DataProvenance } from "@/components/DataProvenance";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const tickerDefaults = ["IBOV", "SPX", "IXIC", "BTC/USD", "BZ=F"];
 const dashboardOrderKey = "virtus-dashboard-order-v1";
@@ -77,6 +78,12 @@ function changeClass(change: unknown) {
 export default function Home() {
   const { user } = useAuth();
   const [widgetOrder, setWidgetOrder] = useState<string[]>(readWidgetOrder);
+  const [radarMobileTab, setRadarMobileTab] = useState<
+    "all" | "watchlist" | "news" | "calendar"
+  >("all");
+  const [pulseMobileTab, setPulseMobileTab] = useState<
+    "all" | "gainers" | "losers" | "volumes"
+  >("all");
   const preferencesQuery = trpc.portfolio.preferences.useQuery(undefined, {
     enabled: Boolean(user),
   });
@@ -468,20 +475,77 @@ export default function Home() {
             </span>
           </div>
 
+          {/* Segmented Control para telas móveis no Radar Virtus */}
+          <div className="mb-4 flex items-center gap-1.5 overflow-x-auto pb-1 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setRadarMobileTab("all")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition shrink-0",
+                radarMobileTab === "all"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setRadarMobileTab("watchlist")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition shrink-0",
+                radarMobileTab === "watchlist"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Minha Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setRadarMobileTab("news")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition shrink-0",
+                radarMobileTab === "news"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Notícias
+            </button>
+            <button
+              type="button"
+              onClick={() => setRadarMobileTab("calendar")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition shrink-0",
+                radarMobileTab === "calendar"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Calendário
+            </button>
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-3">
-            {widgetOrder.map((widget, index) => (
-              <EditorialWidget
-                key={widget}
-                widget={widget}
-                index={index}
-                total={widgetOrder.length}
-                onMove={moveWidget}
-                news={newsQuery.data ?? []}
-                calendar={calendarQuery.data ?? []}
-                watchlist={watchlist}
-                signedIn={Boolean(user)}
-              />
-            ))}
+            {widgetOrder
+              .filter(
+                widget =>
+                  radarMobileTab === "all" || widget === radarMobileTab
+              )
+              .map((widget, index) => (
+                <EditorialWidget
+                  key={widget}
+                  widget={widget}
+                  index={index}
+                  total={widgetOrder.length}
+                  onMove={moveWidget}
+                  news={newsQuery.data ?? []}
+                  calendar={calendarQuery.data ?? []}
+                  watchlist={watchlist}
+                  signedIn={Boolean(user)}
+                />
+              ))}
           </div>
         </section>
 
@@ -530,38 +594,97 @@ export default function Home() {
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)]">
           <Panel className="overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between border-b border-border/60 px-5 py-4 gap-3">
               <div>
                 <h2 className="section-heading">Pulso do mercado</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Movimentos relevantes do universo acompanhado.
                 </p>
               </div>
-              <Link
-                href="/markets"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-primary"
-              >
-                Ver mercados <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
+              <div className="flex items-center gap-2">
+                {/* Segmented Control móvel para Pulso do Mercado */}
+                <div className="flex items-center gap-1 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setPulseMobileTab("all")}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 text-[11px] font-medium transition",
+                      pulseMobileTab === "all"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPulseMobileTab("gainers")}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 text-[11px] font-medium transition",
+                      pulseMobileTab === "gainers"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Altas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPulseMobileTab("losers")}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 text-[11px] font-medium transition",
+                      pulseMobileTab === "losers"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Baixas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPulseMobileTab("volumes")}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 text-[11px] font-medium transition",
+                      pulseMobileTab === "volumes"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Volume
+                  </button>
+                </div>
+                <Link
+                  href="/markets"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary"
+                >
+                  Ver mercados <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
             <div className="grid md:grid-cols-3">
-              <MarketList
-                title="Maiores altas"
-                icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
-                data={gainers}
-              />
-              <MarketList
-                title="Maiores baixas"
-                icon={<TrendingDown className="h-4 w-4 text-rose-500" />}
-                data={losers}
-                negative
-              />
-              <MarketList
-                title="Mais negociados"
-                icon={<Zap className="h-4 w-4 text-orange-500" />}
-                data={volumes}
-                volume
-              />
+              {(pulseMobileTab === "all" || pulseMobileTab === "gainers") && (
+                <MarketList
+                  title="Maiores altas"
+                  icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+                  data={gainers}
+                />
+              )}
+              {(pulseMobileTab === "all" || pulseMobileTab === "losers") && (
+                <MarketList
+                  title="Maiores baixas"
+                  icon={<TrendingDown className="h-4 w-4 text-rose-500" />}
+                  data={losers}
+                  negative
+                />
+              )}
+              {(pulseMobileTab === "all" || pulseMobileTab === "volumes") && (
+                <MarketList
+                  title="Mais negociados"
+                  icon={<Zap className="h-4 w-4 text-orange-500" />}
+                  data={volumes}
+                  volume
+                />
+              )}
             </div>
           </Panel>
           <Panel className="flex flex-col p-5">

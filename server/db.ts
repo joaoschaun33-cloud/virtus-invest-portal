@@ -8,6 +8,7 @@ import {
   notifications,
   news,
   priceAlerts,
+  pushSubscriptions,
   quotes,
   transactions,
   userPreferences,
@@ -19,6 +20,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { sendPriceAlertEmail } from "./email";
+import { sendWebPushNotification } from "./pushNotifications";
 import {
   estimateDividendIncome,
   summarizePortfolioPerformance,
@@ -32,7 +34,10 @@ import fs from "fs";
 import path from "path";
 import { fetchBinanceBatchQuotes } from "./marketProviders";
 
+import mysql from "mysql2/promise";
+
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: mysql.Pool | null = null;
 let seedPromise: Promise<void> | null = null;
 let migrationPromise: Promise<void> | null = null;
 let skipCatalogSeedForTests = false;
@@ -47,9 +52,31 @@ export function setDbForTests(db: unknown) {
 
 export function clearDbForTests() {
   _db = null;
+  _pool = null;
   seedPromise = null;
   migrationPromise = null;
   skipCatalogSeedForTests = false;
+}
+
+export function getPoolConfig() {
+  const limit = Math.max(2, Math.min(Number(process.env.DB_POOL_LIMIT ?? 10), 100));
+  return {
+    connectionLimit: limit,
+    maxIdle: Math.min(5, limit),
+    idleTimeout: 60_000,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10_000,
+  };
+}
+
+export async function closeDbPool(): Promise<void> {
+  if (_pool) {
+    try {
+      await _pool.end();
+    } catch (_) {}
+    _pool = null;
+  }
+  _db = null;
 }
 
 export async function runMigrations() {
@@ -78,7 +105,14 @@ export async function runMigrations() {
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const config = getPoolConfig();
+      _db = drizzle({
+        connection: {
+          uri: process.env.DATABASE_URL,
+          waitForConnections: true,
+          ...config,
+        },
+      });
     } catch (error) {
       logger.warn("database-connection-failed", {
         error:
@@ -87,6 +121,7 @@ export async function getDb() {
             : error,
       });
       _db = null;
+      _pool = null;
     }
   }
   return _db;
@@ -1130,6 +1165,29 @@ export async function evaluatePriceAlerts(
         })
       );
     }
+
+    // Web Push notifications to active subscriptions
+    void (async () => {
+      try {
+        const subs = await getPushSubscriptionsByUser(user.id);
+        for (const sub of subs) {
+          void sendWebPushNotification(
+            { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+            {
+              title: `Alerta acionado · ${asset.ticker}`,
+              body: message,
+              tag: `alert-${alert.id}`,
+              data: { ticker: asset.ticker, alertId: alert.id },
+            }
+          );
+        }
+      } catch (err) {
+        logger.warn("price-alert-push-dispatch-error", {
+          alertId: alert.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    })();
   }
   return triggered.length;
 }
@@ -1412,4 +1470,63 @@ export async function getLatestAssetsByIds(ids: number[]) {
   const db = await getDb();
   if (!db || ids.length === 0) return [];
   return db.select().from(assets).where(inArray(assets.id, ids));
+}
+
+export async function savePushSubscription(
+  userId: number,
+  subscription: { endpoint: string; p256dh: string; auth: string }
+) {
+  const db = await getDb();
+  if (!db) return;
+  // Upsert or insert if not present
+  const existing = await db
+    .select()
+    .from(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.userId, userId),
+        eq(pushSubscriptions.endpoint, subscription.endpoint)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(pushSubscriptions)
+      .set({
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+        updatedAt: new Date(),
+      })
+      .where(eq(pushSubscriptions.id, existing[0].id));
+  } else {
+    await db.insert(pushSubscriptions).values({
+      userId,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.p256dh,
+      auth: subscription.auth,
+    });
+  }
+}
+
+export async function getPushSubscriptionsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.userId, userId));
+}
+
+export async function deletePushSubscription(userId: number, endpoint: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.userId, userId),
+        eq(pushSubscriptions.endpoint, endpoint)
+      )
+    );
 }

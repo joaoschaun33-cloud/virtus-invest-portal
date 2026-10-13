@@ -24,8 +24,12 @@ import {
   savePreferences,
   recordUserConsent,
   toggleAlert,
+  savePushSubscription,
+  getPushSubscriptionsByUser,
+  deletePushSubscription,
 } from "../db";
 import { getAssetByTicker } from "../db";
+import { sendWebPushNotification } from "../pushNotifications";
 import { deleteFirebaseUser } from "../_core/firebaseAuth";
 import { hasValidPositionLedger } from "../portfolioLogic";
 import { getStoredAssetSnapshot } from "../assetSnapshot";
@@ -390,6 +394,44 @@ export const portfolioRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await savePreferences(ctx.user.id, input);
+      return { ok: true };
+    }),
+  savePushSubscription: protectedProcedure
+    .input(
+      z.object({
+        endpoint: z.string().url(),
+        p256dh: z.string().min(1),
+        auth: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await savePushSubscription(ctx.user.id, input);
+      return { ok: true };
+    }),
+  testPushNotification: protectedProcedure.mutation(async ({ ctx }) => {
+    const subs = await getPushSubscriptionsByUser(ctx.user.id);
+    if (subs.length === 0) {
+      return {
+        ok: false,
+        message: "Nenhuma assinatura de notificação ativa encontrada para este navegador.",
+      };
+    }
+    for (const sub of subs) {
+      void sendWebPushNotification(
+        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+        {
+          title: "Virtus Portal · Teste de Alerta",
+          body: "Seu navegador está configurado para receber alertas em tempo real!",
+          tag: "test-notification",
+        }
+      );
+    }
+    return { ok: true, count: subs.length };
+  }),
+  deletePushSubscription: protectedProcedure
+    .input(z.object({ endpoint: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await deletePushSubscription(ctx.user.id, input.endpoint);
       return { ok: true };
     }),
   compoundInterest: publicProcedure

@@ -12,6 +12,8 @@ import type { MarketDataSource } from "../../../shared/marketData";
 import { trackProductEvent } from "@/lib/analytics";
 import { optionalNumberValue } from "@/lib/formatters";
 
+import { EducationalAIAssistant } from "@/components/EducationalAIAssistant";
+
 const fieldLabels = {
   price: "Preço atual (R$)", eps: "LPA (R$)", pe: "P/L", bvps: "VPA (R$)",
   dividend: "Dividendos por ação (R$)", growth: "Crescimento (% a.a.)", roe: "ROE (%)",
@@ -91,7 +93,16 @@ export default function FundamentalAnalysis() {
   }) : null;
 
   return <DashboardLayout allowAnonymous><div className="mx-auto max-w-6xl px-2 py-6 sm:px-5 sm:py-9">
-    <header className="max-w-3xl"><span className="text-xs font-semibold uppercase tracking-[.16em] text-primary">Ferramenta educacional</span><h1 className="mt-2 text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Análise fundamentalista</h1><p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">Aplique quatro métodos clássicos a dados públicos do ativo. Confira e edite cada entrada antes de interpretar os resultados.</p></header>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="max-w-3xl">
+        <span className="text-xs font-semibold uppercase tracking-[.16em] text-primary">Ferramenta educacional</span>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Análise fundamentalista</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">Aplique quatro métodos clássicos a dados públicos do ativo. Confira e edite cada entrada antes de interpretar os resultados.</p>
+      </div>
+      <div>
+        <EducationalAIAssistant ticker={submitted || undefined} triggerLabel="Dúvidas com IA (CVM & Balanços)" />
+      </div>
+    </header>
     <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[.07] p-4 text-sm leading-6 text-amber-900 dark:text-amber-200"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Não é recomendação.</strong> Fórmulas históricas simplificam a realidade, não estimam o futuro e não substituem uma análise completa da empresa, do setor e dos riscos.</p></div>
     <form onSubmit={search} className="mt-6 flex gap-2"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} placeholder="Digite um ticker, por exemplo: PETR4" className="h-12 pl-10 uppercase" aria-label="Ticker do ativo" /></div><Button type="submit" className="h-12 px-5" disabled={!ticker.trim() || query.isFetching}>{query.isFetching ? "Buscando…" : "Buscar dados"}</Button></form>
     {query.isError && <p role="alert" className="mt-3 rounded-xl border border-rose-500/25 bg-rose-500/[.06] p-3 text-sm text-rose-700 dark:text-rose-300">Não foi possível consultar o ativo. Confira o ticker ou tente novamente.</p>}
@@ -100,7 +111,11 @@ export default function FundamentalAnalysis() {
     <Panel className="mt-6 p-5 sm:p-6"><div className="flex items-center justify-between"><div><h2 className="font-semibold">Dados utilizados nos cálculos</h2><p className="mt-1 text-xs text-muted-foreground">Automático quando disponível · sempre editável</p></div><CircleHelp className="h-5 w-5 text-muted-foreground" /></div><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{(Object.keys(fieldLabels) as Field[]).map(key => <label key={key}><span className="mb-1.5 block text-xs font-medium">{fieldLabels[key]}</span><Input inputMode="decimal" value={fields[key]} onChange={e => setFields(current => ({ ...current, [key]: e.target.value }))} placeholder="Sem dado" /></label>)}</div><div className="mt-5"><p className="text-xs font-medium">Lucro crescente nos últimos cinco anos?</p><div className="mt-2 flex gap-2">{([['yes','Sim'],['no','Não'],['unknown','Sem dado']] as const).map(([value,label]) => <Button key={value} type="button" size="sm" variant={profitTrend === value ? "default" : "outline"} onClick={() => setProfitTrend(value)}>{label}</Button>)}</div></div></Panel>
 
     {analysis ? <div className="mt-6 grid gap-4 md:grid-cols-2"><MethodCard title="Benjamin Graham" subtitle="Preço teórico por lucro e patrimônio" signal={signalForMargin(analysis.grahamMargin)} value={money(analysis.grahamPrice)} detail={analysis.grahamMargin === null ? "Preencha VPA e LPA positivos." : `Diferença para o preço atual: ${display(analysis.grahamMargin, 1)}%`} /><MethodCard title="Décio Bazin" subtitle="Preço teto com referência de yield de 6%" signal={analysis.bazinPrice === null ? "neutral" : values.price! <= analysis.bazinPrice ? "positive" : "attention"} value={money(analysis.bazinPrice)} detail={analysis.dividendYield === null ? "Preencha dividendos por ação." : `Yield implícito informado: ${display(analysis.dividendYield)}%`} /><BuffettCard criteria={analysis.criteria} score={analysis.score} total={analysis.evaluated} /><MethodCard title="Peter Lynch" subtitle="PEG: P/L dividido pelo crescimento informado" signal={signalForPeg(analysis.peg)} value={analysis.peg === null ? "Indefinido" : display(analysis.peg)} detail={analysis.peg === null ? "Preencha P/L e crescimento positivos." : analysis.peg < 1 ? "Abaixo de 1 no modelo; investigue a sustentabilidade do crescimento." : analysis.peg <= 1.5 ? "Entre 1 e 1,5 no modelo." : "Acima de 1,5 no modelo; crescimento e preço exigem contexto."} /></div> : <div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Busque um ticker ou informe um preço atual para começar.</div>}
-    <div className="mt-6 flex flex-wrap gap-3"><Link href={submitted ? `/asset/${submitted}` : "/markets"}><Button variant="outline">Ver página completa do ativo</Button></Link><Link href="/guia"><Button variant="ghost">Revisar conceitos no guia</Button></Link></div>
+    <div className="mt-6 flex flex-wrap items-center gap-3">
+      <Link href={submitted ? `/asset/${submitted}` : "/markets"}><Button variant="outline">Ver página completa do ativo</Button></Link>
+      <Link href="/guia"><Button variant="ghost">Revisar conceitos no guia</Button></Link>
+      <EducationalAIAssistant ticker={submitted || undefined} triggerLabel="Tirar dúvidas com o Assistente" />
+    </div>
   </div></DashboardLayout>;
 }
 

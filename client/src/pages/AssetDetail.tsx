@@ -21,6 +21,7 @@ import {
 import { MarketChart } from "@/components/apex/MarketChart";
 import { FinancialHistoryChart } from "@/components/apex/FinancialHistoryChart";
 import { AssetValuationCockpit } from "@/components/apex/AssetValuationCockpit";
+import { EducationalAIAssistant } from "@/components/EducationalAIAssistant";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -222,6 +223,7 @@ export default function AssetDetail() {
                 )}
                 {isFavorite ? "Favoritado" : "Favoritar"}
               </Button>
+              <EducationalAIAssistant ticker={ticker} triggerLabel="Dúvidas com IA" />
             </div>
           }
         />

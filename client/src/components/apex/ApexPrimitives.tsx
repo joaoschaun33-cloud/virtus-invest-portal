@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
   Command,
@@ -182,6 +183,57 @@ export function LiveBadge({ label }: { label?: string }) {
   );
 }
 
+export function AnimatedPrice({
+  value,
+  assetType,
+  currency,
+  className,
+}: {
+  value: unknown;
+  assetType?: string;
+  currency?: string;
+  className?: string;
+}) {
+  const currentNum = optionalNumberValue(value);
+  const prevRef = useRef<number | null>(currentNum);
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+
+  useEffect(() => {
+    if (
+      prevRef.current !== null &&
+      currentNum !== null &&
+      Math.abs(currentNum - prevRef.current) > 0.0001
+    ) {
+      setFlash(currentNum > prevRef.current ? "up" : "down");
+      const timer = setTimeout(() => setFlash(null), 600);
+      prevRef.current = currentNum;
+      return () => clearTimeout(timer);
+    }
+    prevRef.current = currentNum;
+  }, [currentNum]);
+
+  const formatted = assetType
+    ? formatMarketValue(value, assetType, currency)
+    : currency
+      ? formatPrice(value, currency)
+      : String(value ?? "");
+
+  return (
+    <span
+      className={cn(
+        "inline-block rounded px-1 transition-colors duration-500 tabular-nums",
+        flash === "up" &&
+          "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold",
+        flash === "down" &&
+          "bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold",
+        className
+      )}
+    >
+      {formatted}
+    </span>
+  );
+}
+
 export function MetricCard({
   label,
   value,
@@ -237,11 +289,11 @@ export function MetricCard({
         )}
       </div>
       <p className="mt-4 text-2xl font-semibold tracking-[-0.04em]">
-        {assetType
-          ? formatMarketValue(value, assetType, currency)
-          : currency
-            ? formatPrice(value, currency)
-            : String(value)}
+        <AnimatedPrice
+          value={value}
+          assetType={assetType}
+          currency={currency}
+        />
       </p>
       {note && <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>}
       {footer && <div className="mt-3">{footer}</div>}
@@ -277,7 +329,9 @@ export function AssetLink({
         </p>
       </div>
       <div className="text-right">
-        <p className="text-sm font-semibold">{formatPrice(price, currency)}</p>
+        <p className="text-sm font-semibold">
+          <AnimatedPrice value={price} currency={currency} />
+        </p>
         <p
           className={cn(
             "text-xs font-medium",

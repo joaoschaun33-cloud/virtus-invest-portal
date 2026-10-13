@@ -404,3 +404,23 @@ export const consentRecords = mysqlTable(
 );
 
 export type ConsentRecord = typeof consentRecords.$inferSelect;
+
+/** Web Push subscriptions for instant browser alerts */
+export const pushSubscriptions = mysqlTable(
+  "pushSubscriptions",
+  {
+    id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    userPushIndex: index("push_subscriptions_user_idx").on(table.userId),
+  })
+);
+
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;

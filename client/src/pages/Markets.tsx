@@ -29,6 +29,7 @@ import {
 } from "@/lib/formatters";
 import { useMarketRealtime } from "@/hooks/useMarketRealtime";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
+import { useVirtualList } from "@/hooks/useVirtualList";
 import { DataProvenance } from "@/components/DataProvenance";
 import { YieldCurveCockpit } from "@/components/macro/YieldCurveCockpit";
 
@@ -92,6 +93,12 @@ export default function Markets() {
   const visibleAssets = assets.filter(
     asset => asset.price !== null || quotes[asset.ticker]?.price !== undefined
   );
+  const isVirtualized = visibleAssets.length > 20;
+  const { containerRef, virtualItems, totalHeight } = useVirtualList({
+    items: visibleAssets,
+    itemHeight: 74,
+    overscan: 4,
+  });
   const serverWatchIds = useMemo(
     () => new Set((watchlistQuery.data ?? []).map(item => item.asset.id)),
     [watchlistQuery.data]
@@ -206,92 +213,196 @@ export default function Markets() {
                 <span>Classe</span>
                 <span />
               </div>
-              <div className="divide-y divide-border/60">
-                {visibleAssets.map(asset => {
-                  const live = quotes[asset.ticker];
-                  const price = live?.price ?? asset.price;
-                  const change = live?.changePercent ?? asset.changePercent;
-                  const numericChange = optionalNumberValue(change);
-                  const isFav = watchIds.has(asset.id);
-                  return (
+              {visibleAssets.length > 0 ? (
+                isVirtualized ? (
+                  <div
+                    ref={containerRef}
+                    className="max-h-[720px] overflow-y-auto relative divide-y divide-border/60"
+                  >
                     <div
-                      key={asset.id}
-                      className="grid gap-3 px-4 py-4 transition hover:bg-accent/45 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4 md:px-5"
+                      style={{
+                        height: `${totalHeight}px`,
+                        position: "relative",
+                        width: "100%",
+                      }}
                     >
-                      <Link
-                        href={`/asset/${encodeURIComponent(asset.ticker)}`}
-                        className="min-w-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-red-700 dark:text-red-300">
-                            {asset.ticker.slice(0, 2)}
+                      {virtualItems.map(({ item: asset, offsetTop }) => {
+                        const live = quotes[asset.ticker];
+                        const price = live?.price ?? asset.price;
+                        const change = live?.changePercent ?? asset.changePercent;
+                        const numericChange = optionalNumberValue(change);
+                        const isFav = watchIds.has(asset.id);
+                        return (
+                          <div
+                            key={asset.id}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              transform: `translateY(${offsetTop}px)`,
+                            }}
+                          >
+                            <div className="grid gap-3 px-4 py-4 transition hover:bg-accent/45 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4 md:px-5 border-b border-border/60">
+                              <Link
+                                href={`/asset/${encodeURIComponent(asset.ticker)}`}
+                                className="min-w-0"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-red-700 dark:text-red-300">
+                                    {asset.ticker.slice(0, 2)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold tracking-tight hover:text-primary">
+                                      {asset.ticker}
+                                    </p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                      {asset.name}
+                                    </p>
+                                  </div>
+                                </div>
+                              </Link>
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  {formatMarketValue(
+                                    price,
+                                    asset.assetType,
+                                    asset.currency
+                                  )}
+                                </p>
+                                <DataProvenance
+                                  source={live?.source ?? asset.source}
+                                  asOf={live?.asOf ?? asset.fetchedAt}
+                                  freshness={live ? "delayed" : asset.freshness}
+                                  compact
+                                />
+                              </div>
+                              <p
+                                className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}
+                              >
+                                {numericChange !== null && numericChange >= 0
+                                  ? "+"
+                                  : ""}
+                                {formatPercent(change)}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatCompact(live?.volume ?? asset.volume)}
+                              </p>
+                              <span className="w-fit rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                                {assetTypeLabel[asset.assetType] ?? asset.assetType}
+                              </span>
+                              <button
+                                aria-label={`${isFav ? "Remover" : "Adicionar"} ${asset.ticker} da watchlist`}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-amber-500"
+                                onClick={() => {
+                                  if (!user) return localWatchlist.toggle(asset.id);
+                                  if (serverWatchIds.has(asset.id))
+                                    return removeMutation.mutate({ assetId: asset.id });
+                                  if (localWatchIds.has(asset.id))
+                                    return localWatchlist.toggle(asset.id);
+                                  addMutation.mutate({ assetId: asset.id });
+                                }}
+                              >
+                                {isFav ? (
+                                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                                ) : (
+                                  <StarOff className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold tracking-tight hover:text-primary">
-                              {asset.ticker}
-                            </p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {asset.name}
-                            </p>
-                          </div>
-                        </div>
-                      </Link>
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {formatMarketValue(
-                            price,
-                            asset.assetType,
-                            asset.currency
-                          )}
-                        </p>
-                        <DataProvenance
-                          source={live?.source ?? asset.source}
-                          asOf={live?.asOf ?? asset.fetchedAt}
-                          freshness={live ? "delayed" : asset.freshness}
-                          compact
-                        />
-                      </div>
-                      <p
-                        className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}
-                      >
-                        {numericChange !== null && numericChange >= 0
-                          ? "+"
-                          : ""}
-                        {formatPercent(change)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatCompact(live?.volume ?? asset.volume)}
-                      </p>
-                      <span className="w-fit rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                        {assetTypeLabel[asset.assetType] ?? asset.assetType}
-                      </span>
-                      <button
-                        aria-label={`${isFav ? "Remover" : "Adicionar"} ${asset.ticker} da watchlist`}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-amber-500"
-                        onClick={() => {
-                          if (!user) return localWatchlist.toggle(asset.id);
-                          if (serverWatchIds.has(asset.id))
-                            return removeMutation.mutate({ assetId: asset.id });
-                          if (localWatchIds.has(asset.id))
-                            return localWatchlist.toggle(asset.id);
-                          addMutation.mutate({ assetId: asset.id });
-                        }}
-                      >
-                        {isFav ? (
-                          <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                        ) : (
-                          <StarOff className="h-4 w-4" />
-                        )}
-                      </button>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-                {!visibleAssets.length && (
-                  <div className="p-10 text-center text-sm text-muted-foreground">
-                    Nenhum ativo encontrado para este filtro.
                   </div>
-                )}
-              </div>
+                ) : (
+                  <div className="divide-y divide-border/60">
+                    {visibleAssets.map(asset => {
+                      const live = quotes[asset.ticker];
+                      const price = live?.price ?? asset.price;
+                      const change = live?.changePercent ?? asset.changePercent;
+                      const numericChange = optionalNumberValue(change);
+                      const isFav = watchIds.has(asset.id);
+                      return (
+                        <div
+                          key={asset.id}
+                          className="grid gap-3 px-4 py-4 transition hover:bg-accent/45 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4 md:px-5"
+                        >
+                          <Link
+                            href={`/asset/${encodeURIComponent(asset.ticker)}`}
+                            className="min-w-0"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-red-700 dark:text-red-300">
+                                {asset.ticker.slice(0, 2)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold tracking-tight hover:text-primary">
+                                  {asset.ticker}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {asset.name}
+                                </p>
+                              </div>
+                            </div>
+                          </Link>
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {formatMarketValue(
+                                price,
+                                asset.assetType,
+                                asset.currency
+                              )}
+                            </p>
+                            <DataProvenance
+                              source={live?.source ?? asset.source}
+                              asOf={live?.asOf ?? asset.fetchedAt}
+                              freshness={live ? "delayed" : asset.freshness}
+                              compact
+                            />
+                          </div>
+                          <p
+                            className={`text-sm font-semibold ${numericChange === null ? "text-muted-foreground" : numericChange >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}
+                          >
+                            {numericChange !== null && numericChange >= 0
+                              ? "+"
+                              : ""}
+                            {formatPercent(change)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatCompact(live?.volume ?? asset.volume)}
+                          </p>
+                          <span className="w-fit rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                            {assetTypeLabel[asset.assetType] ?? asset.assetType}
+                          </span>
+                          <button
+                            aria-label={`${isFav ? "Remover" : "Adicionar"} ${asset.ticker} da watchlist`}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-amber-500"
+                            onClick={() => {
+                              if (!user) return localWatchlist.toggle(asset.id);
+                              if (serverWatchIds.has(asset.id))
+                                return removeMutation.mutate({ assetId: asset.id });
+                              if (localWatchIds.has(asset.id))
+                                return localWatchlist.toggle(asset.id);
+                              addMutation.mutate({ assetId: asset.id });
+                            }}
+                          >
+                            {isFav ? (
+                              <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                            ) : (
+                              <StarOff className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <div className="p-10 text-center text-sm text-muted-foreground">
+                  Nenhum ativo encontrado para este filtro.
+                </div>
+              )}
             </Panel>
             <div className="mt-5 flex items-center justify-between gap-4 text-xs text-muted-foreground">
               <span>{visibleAssets.length} ativos com cobertura</span>

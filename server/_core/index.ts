@@ -14,7 +14,7 @@ import { runCvmFinancialIngestion } from "../cvmFinancialIngestion";
 import { runB3CotahistIngestion } from "../b3Cotahist";
 import { runB3IndexSeed } from "../b3IndexSeed";
 import { authorizeJobRequest, matchesJobSecret } from "../jobAuth";
-import { getDb } from "../db";
+import { getDb, closeDbPool } from "../db";
 import { logger } from "./logger";
 import { randomUUID } from "node:crypto";
 import { getMetrics, recordRequest } from "./metrics";
@@ -376,6 +376,32 @@ async function startServer() {
     createExpressMiddleware({
       router: appRouter,
       createContext,
+      responseMeta(opts) {
+        if (opts.errors.length > 0) {
+          return { headers: { "Cache-Control": "no-store" } };
+        }
+        if (opts.ctx?.user) {
+          return { headers: { "Cache-Control": "private, no-cache" } };
+        }
+        const isPublicCacheable =
+          opts.type === "query" &&
+          Boolean(opts.paths?.length) &&
+          opts.paths?.every(
+            p =>
+              p.startsWith("market.") ||
+              p.startsWith("news.") ||
+              p.startsWith("calendar.")
+          );
+        if (isPublicCacheable) {
+          return {
+            headers: {
+              "Cache-Control":
+                "public, max-age=10, s-maxage=30, stale-while-revalidate=60",
+            },
+          };
+        }
+        return { headers: { "Cache-Control": "no-store" } };
+      },
     })
   );
   // development mode uses Vite, production mode uses static files
@@ -398,6 +424,18 @@ async function startServer() {
   server.listen(port, () => {
     logger.info("server.started", { port });
   });
+
+  const handleShutdown = async (signal: string) => {
+    logger.info("server.shutting_down", { signal });
+    server.close(async () => {
+      await closeDbPool();
+      logger.info("server.gracefully_stopped");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", () => void handleShutdown("SIGTERM"));
+  process.on("SIGINT", () => void handleShutdown("SIGINT"));
 }
 
 startServer().catch(error => logger.error("server.start_failed", error));

@@ -8,6 +8,8 @@ import {
   Plus,
   Trash2,
   Zap,
+  Globe,
+  Smartphone,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -81,6 +83,79 @@ export default function Alerts() {
     onError: error =>
       toast.error(error.message || "Não foi possível salvar a preferência."),
   });
+
+  const [pushPermission, setPushPermission] = useState<string>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "unsupported";
+  });
+
+  const savePushMutation = trpc.portfolio.savePushSubscription.useMutation({
+    onSuccess: () => {
+      toast.success("Dispositivo registrado para Web Push!");
+    },
+  });
+
+  const testPushMutation = trpc.portfolio.testPushNotification.useMutation({
+    onSuccess: result => {
+      if (result.ok) {
+        toast.success("Disparo de teste executado com sucesso!");
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          new Notification("Virtus Portal · Teste de Alerta", {
+            body: "Web Push conectado! Seus alertas chegarão em tempo real.",
+          });
+        }
+      } else {
+        toast.info(result.message);
+      }
+    },
+    onError: err => {
+      toast.error(err.message || "Falha ao enviar teste de notificação.");
+    },
+  });
+
+  const handleRequestPush = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Notificações não são suportadas por este navegador.");
+      return;
+    }
+    try {
+      const res = await Notification.requestPermission();
+      setPushPermission(res);
+      if (res === "granted") {
+        toast.success("Permissão concedida para notificações!");
+        new Notification("Virtus Portal", {
+          body: "Alertas no navegador ativados com sucesso!",
+        });
+        // Se houver service worker ativo
+        if ("serviceWorker" in navigator) {
+          const reg = await navigator.serviceWorker.ready.catch(() => null);
+          if (reg?.pushManager) {
+            try {
+              let sub = await reg.pushManager.getSubscription();
+              if (sub) {
+                const key = sub.getKey("p256dh");
+                const auth = sub.getKey("auth");
+                if (key && auth) {
+                  savePushMutation.mutate({
+                    endpoint: sub.endpoint,
+                    p256dh: btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(key)))),
+                    auth: btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(auth)))),
+                  });
+                }
+              }
+            } catch (_) {}
+          }
+        }
+      } else if (res === "denied") {
+        toast.error("Notificações bloqueadas nas configurações do seu navegador.");
+      }
+    } catch (e) {
+      toast.error("Não foi possível solicitar permissão.");
+    }
+  };
+
   const [ticker, setTicker] = useState("PETR4");
   const [target, setTarget] = useState("40");
   const [condition, setCondition] = useState<"ABOVE" | "BELOW">("ABOVE");
@@ -209,6 +284,59 @@ export default function Alerts() {
                       ? "E-mail transacional configurado e pronto para disparos."
                       : "O envio efetivo depende da configuração do provedor transacional."}
                   </p>
+                </div>
+
+                <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/[0.04] p-3 text-[11px] leading-5 text-muted-foreground">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-foreground">
+                        Web Push (Navegador & Celular)
+                      </span>
+                    </div>
+                    {pushPermission === "granted" ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        Ativo
+                      </span>
+                    ) : pushPermission === "denied" ? (
+                      <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                        Bloqueado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        Pendente
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs">
+                    Receba avisos instantâneos na barra de tarefas ou na tela de bloqueio do celular assim que o preço-alvo for atingido.
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    {pushPermission !== "granted" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="default"
+                        className="h-7 rounded-lg text-xs"
+                        onClick={handleRequestPush}
+                      >
+                        Ativar neste navegador
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 rounded-lg text-xs"
+                        onClick={() => testPushMutation.mutate()}
+                        disabled={testPushMutation.isPending}
+                      >
+                        {testPushMutation.isPending
+                          ? "Disparando..."
+                          : "Enviar alerta de teste"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </Panel>
